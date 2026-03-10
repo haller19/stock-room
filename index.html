@@ -293,6 +293,70 @@
     border-radius: 4px; height: 14px; margin: 4px 0;
   }
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* ===== DARK MODE ===== */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:           #0e1f1f;
+      --surface:      #152828;
+      --border:       #1e3a3a;
+      --border-dark:  #2a5050;
+      --text:         #d8f0ee;
+      --text-muted:   #5a9090;
+      --accent:       #2fcfb8;
+      --accent-hover: #26b8a3;
+      --accent-light: #0d2e2b;
+      --accent-mid:   #1a4a46;
+      --danger:       #f07070;
+      --danger-hover: #e05555;
+      --success:      #2fcfb8;
+    }
+
+    header {
+      background: #0e1f1f;
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    }
+
+    .card {
+      box-shadow: 0 2px 16px rgba(0,0,0,.3);
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #152828 0%, #0e1f1f 100%);
+    }
+
+    input[type="text"], input[type="number"], select {
+      background: #0e1f1f;
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232fcfb8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-color: #0e1f1f;
+    }
+
+    .tab-btn.active { background: #1e3a3a; }
+
+    th { background: #0e1f1f; }
+
+    tr:hover td { background: #1a3232; }
+
+    .edit-row td { background: var(--accent-light) !important; }
+    .edit-row input[type="text"] { background: #0e1f1f; }
+
+    .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
+    .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
+
+    .skeleton {
+      background: linear-gradient(90deg, #152828 25%, #1e3838 50%, #152828 75%);
+      background-size: 200% 100%;
+    }
+
+    .btn { color: #fff; }
+    .btn-primary { box-shadow: 0 2px 10px rgba(47,207,184,.15); }
+    .btn-danger  { box-shadow: 0 2px 10px rgba(240,112,112,.15); }
+  }
 </style>
 <script src="config.js"></script>
 </head>
