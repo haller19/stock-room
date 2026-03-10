@@ -1,0 +1,16 @@
+# ===== Basic認証 =====
+# パスワードファイルのパスは実際のサーバーパスに変更してください
+# 例: /home/ユーザー名/stock/.htpasswd
+AuthType Basic
+AuthName "Stock Management"
+AuthUserFile /home/YOUR_USERNAME/stock/.htpasswd
+Require valid-user
+
+# ===== セキュリティ =====
+# .htpasswdファイルへの直接アクセスを禁止
+<Files ".htpasswd">
+  Require all denied
+</Files>
+
+# ディレクトリリスティングを無効化
+Options -Indexes

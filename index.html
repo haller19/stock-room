@@ -46,17 +46,30 @@
     top: 0;
     z-index: 100;
   }
-  header h1 {
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: .04em;
-  }
-  header .subtitle {
+  header h1 { font-size: 15px; font-weight: 700; letter-spacing: .04em; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .sync-status {
     font-family: var(--mono);
     font-size: 11px;
     color: #888;
-    letter-spacing: .08em;
+    letter-spacing: .06em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #555;
+    transition: background .3s;
+  }
+  .sync-dot.ok  { background: #4caf50; }
+  .sync-dot.err { background: #f44336; }
+  .sync-dot.loading {
+    background: #ffb300;
+    animation: pulse .8s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
   /* ===== LAYOUT ===== */
   .container {
@@ -68,7 +81,6 @@
     gap: 16px;
     align-items: start;
   }
-
   @media (max-width: 720px) {
     .container { grid-template-columns: 1fr; }
   }
@@ -87,78 +99,46 @@
     gap: 8px;
   }
   .card-header h2 {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: .03em;
-    text-transform: uppercase;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: .03em; text-transform: uppercase;
   }
   .badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 2px;
-    background: var(--bg);
-    color: var(--text-muted);
+    font-family: var(--mono); font-size: 10px;
+    padding: 2px 6px; border-radius: 2px;
+    background: var(--bg); color: var(--text-muted);
     border: 1px solid var(--border);
   }
   .card-body { padding: 16px; }
 
   /* ===== TABS ===== */
-  .tabs {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 16px;
-  }
+  .tabs { display: flex; gap: 2px; margin-bottom: 16px; }
   .tab-btn {
-    flex: 1;
-    padding: 8px 4px;
+    flex: 1; padding: 8px 4px;
     border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text-muted);
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: all .15s;
+    background: var(--bg); color: var(--text-muted);
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    cursor: pointer; border-radius: 3px; transition: all .15s;
   }
   .tab-btn:hover { background: #ebe9e4; color: var(--text); }
-  .tab-btn.active {
-    background: var(--text);
-    color: #fff;
-    border-color: var(--text);
-  }
+  .tab-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
 
   /* ===== FORM ===== */
   .form-group { margin-bottom: 12px; }
   label {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 5px;
+    display: block; font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 5px;
   }
-
-  input[type="text"],
-  input[type="number"],
-  select {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    font-family: var(--sans);
-    font-size: 14px;
-    background: var(--surface);
-    color: var(--text);
+  input[type="text"], input[type="number"], select {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 3px;
+    font-family: var(--sans); font-size: 14px;
+    background: var(--surface); color: var(--text);
     transition: border-color .15s;
-    appearance: none;
-    -webkit-appearance: none;
+    appearance: none; -webkit-appearance: none;
   }
   input:focus, select:focus {
-    outline: none;
-    border-color: var(--accent);
+    outline: none; border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(42,92,170,.12);
   }
   select {
@@ -168,192 +148,120 @@
     padding-right: 30px;
   }
 
-  .input-row {
-    display: grid;
-    grid-template-columns: 1fr 80px;
-    gap: 8px;
-  }
-
   /* ===== BUTTONS ===== */
   .btn {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 3px;
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: .02em;
-    transition: background .15s, transform .08s;
+    width: 100%; padding: 10px;
+    border: none; border-radius: 3px;
+    font-family: var(--sans); font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: .02em;
+    transition: background .15s, transform .08s, opacity .15s;
   }
   .btn:active { transform: scale(.98); }
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-  }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-danger {
-    background: var(--danger);
-    color: #fff;
-  }
-  .btn-danger:hover { background: var(--danger-hover); }
-  .btn-sm {
-    width: auto;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 500;
-  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+  .btn-sm { width: auto; padding: 4px 10px; font-size: 12px; font-weight: 500; }
 
-  /* ===== NEW ITEM INLINE ===== */
+  /* ===== NEW ITEM ===== */
   .new-item-row {
-    display: none;
-    background: #f0f4fb;
-    border: 1px solid #bdd0f0;
-    border-radius: 3px;
-    padding: 12px;
-    margin-bottom: 12px;
+    display: none; background: #f0f4fb;
+    border: 1px solid #bdd0f0; border-radius: 3px;
+    padding: 12px; margin-bottom: 12px;
   }
   .new-item-row.visible { display: block; }
   .new-item-row label { color: #4a6ea8; }
-  .new-item-row input {
-    background: #fff;
-    border-color: #bdd0f0;
-  }
-  .new-item-row input:focus { border-color: var(--accent); }
+  .new-item-row input { background: #fff; border-color: #bdd0f0; }
   .new-item-actions { display: flex; gap: 8px; margin-top: 10px; }
   .new-item-actions .btn { flex: 1; }
 
   /* ===== MESSAGE ===== */
   .msg {
-    padding: 8px 12px;
-    border-radius: 3px;
-    font-size: 13px;
-    margin-bottom: 12px;
-    display: none;
+    padding: 8px 12px; border-radius: 3px;
+    font-size: 13px; margin-bottom: 12px; display: none;
   }
-  .msg.ok { background: #e6f4ec; border: 1px solid #b2dfca; color: var(--success); display: block; }
+  .msg.ok  { background: #e6f4ec; border: 1px solid #b2dfca; color: var(--success); display: block; }
   .msg.err { background: #fdecea; border: 1px solid #f5b7b1; color: var(--danger); display: block; }
 
-  /* ===== STOCK TABLE ===== */
+  /* ===== TABLE ===== */
   .table-wrap { overflow-x: auto; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    color: var(--text-muted);
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 2px solid var(--border);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: var(--text-muted); padding: 8px 12px;
+    text-align: left; border-bottom: 2px solid var(--border);
     white-space: nowrap;
   }
-  td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #faf9f6; }
 
   .td-name { font-weight: 500; }
-  .td-qty {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 500;
-    text-align: right;
-  }
+  .td-qty { font-family: var(--mono); font-size: 15px; font-weight: 500; text-align: right; }
   .td-qty.low { color: var(--danger); }
-  .td-box {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-  }
   .box-tag {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 2px;
-    border: 1px solid var(--border-dark);
-    font-size: 11px;
-    letter-spacing: .05em;
-    background: var(--bg);
+    display: inline-block; padding: 2px 7px;
+    border-radius: 2px; border: 1px solid var(--border-dark);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: .05em; background: var(--bg);
   }
 
-  .search-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    align-items: center;
-  }
+  .search-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
   .search-row input { flex: 1; }
-  .count-badge {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
 
-  .empty {
-    text-align: center;
-    padding: 32px 16px;
-    color: var(--text-muted);
-    font-size: 13px;
-  }
+  .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 13px; }
 
-  /* ===== DIVIDER ===== */
   .or-new {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: center;
-    margin: 10px 0 8px;
-    letter-spacing: .05em;
+    font-size: 11px; color: var(--text-muted);
+    text-align: center; margin: 10px 0 8px; letter-spacing: .05em;
   }
   .link-btn {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 12px;
-    cursor: pointer;
-    text-decoration: underline;
-    padding: 0;
-    font-family: var(--sans);
+    background: none; border: none; color: var(--accent);
+    font-size: 12px; cursor: pointer; text-decoration: underline;
+    padding: 0; font-family: var(--sans);
   }
   .link-btn:hover { color: var(--accent-hover); }
+
+  /* ===== SKELETON LOADER ===== */
+  .skeleton {
+    background: linear-gradient(90deg, #ece9e3 25%, #f5f3ef 50%, #ece9e3 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 2px; height: 14px; margin: 4px 0;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 </style>
 </head>
 <body>
 
 <header>
   <h1>📦 ストック管理</h1>
-  <span class="subtitle">HOUSEHOLD STOCK v0.1</span>
+  <div class="header-right">
+    <div class="sync-status">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">接続中…</span>
+    </div>
+  </div>
 </header>
 
 <div class="container">
 
   <!-- ===== LEFT: 操作パネル ===== -->
   <div class="card">
-    <div class="card-header">
-      <h2>操作</h2>
-    </div>
+    <div class="card-header"><h2>操作</h2></div>
     <div class="card-body">
 
-      <!-- タブ -->
       <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('in')" id="tab-in">入庫 ＋</button>
-        <button class="tab-btn" onclick="switchTab('out')" id="tab-out">出庫 −</button>
+        <button class="tab-btn active" onclick="switchTab('in')"  id="tab-in">入庫 ＋</button>
+        <button class="tab-btn"        onclick="switchTab('out')" id="tab-out">出庫 −</button>
       </div>
 
-      <!-- メッセージ -->
       <div class="msg" id="msg"></div>
 
-      <!-- ===== 入庫フォーム ===== -->
+      <!-- 入庫フォーム -->
       <div id="form-in">
-
         <div class="form-group">
           <label>品目</label>
           <select id="in-item" onchange="onInItemChange()">
@@ -365,7 +273,6 @@
           品目がない場合 → <button class="link-btn" onclick="toggleNewItem()">新規登録</button>
         </div>
 
-        <!-- 新規登録欄 -->
         <div class="new-item-row" id="new-item-row">
           <div class="form-group">
             <label>新しい品名</label>
@@ -381,18 +288,16 @@
           <label>追加数量</label>
           <input type="number" id="in-qty" value="1" min="1" max="999">
         </div>
-
         <div class="form-group">
           <label>保管場所（箱番号）</label>
           <input type="text" id="in-box" placeholder="例：A-3" maxlength="20">
         </div>
 
-        <button class="btn btn-primary" onclick="doIn()">入庫する</button>
+        <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
       </div>
 
-      <!-- ===== 出庫フォーム ===== -->
+      <!-- 出庫フォーム -->
       <div id="form-out" style="display:none">
-
         <div class="form-group">
           <label>品目</label>
           <select id="out-item" onchange="onOutItemChange()">
@@ -410,7 +315,7 @@
           <input type="number" id="out-qty" value="1" min="1" max="999">
         </div>
 
-        <button class="btn btn-danger" onclick="doOut()">出庫する</button>
+        <button class="btn btn-danger" id="btn-out" onclick="doOut()">出庫する</button>
       </div>
 
     </div>
@@ -420,7 +325,7 @@
   <div class="card">
     <div class="card-header">
       <h2>在庫一覧</h2>
-      <span class="badge" id="item-count">0件</span>
+      <span class="badge" id="item-count">…</span>
     </div>
     <div class="card-body" style="padding-bottom:0">
       <div class="search-row">
@@ -436,7 +341,12 @@
             <th>保管場所</th>
           </tr>
         </thead>
-        <tbody id="stock-tbody"></tbody>
+        <tbody id="stock-tbody">
+          <!-- skeleton -->
+          <tr><td colspan="3"><div class="skeleton" style="width:60%"></div></td></tr>
+          <tr><td colspan="3"><div class="skeleton" style="width:75%"></div></td></tr>
+          <tr><td colspan="3"><div class="skeleton" style="width:50%"></div></td></tr>
+        </tbody>
       </table>
     </div>
     <div class="empty" id="empty-msg" style="display:none">登録された品目がありません</div>
@@ -445,43 +355,62 @@
 </div>
 
 <script>
-// ===== DATA =====
-const STORAGE_KEY = 'household_stock_v1';
+// ===== SUPABASE CONFIG =====
+const SUPABASE_URL = '';
+const SUPABASE_KEY = '';
+const HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch { return []; }
-}
-function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-// ダミーデータ（初回のみ）
-function initDummy() {
-  if (load().length > 0) return;
-  const dummy = [
-    { id: uid(), name: 'シャンプー',       qty: 3, box: 'A-1' },
-    { id: uid(), name: 'ボディソープ',     qty: 2, box: 'A-1' },
-    { id: uid(), name: 'トイレットペーパー', qty: 12, box: 'B-2' },
-    { id: uid(), name: 'ティッシュ',       qty: 5, box: 'B-2' },
-    { id: uid(), name: '歯ブラシ',         qty: 4, box: 'A-3' },
-    { id: uid(), name: '食器用洗剤',       qty: 2, box: 'C-1' },
-    { id: uid(), name: 'ゴミ袋（大）',     qty: 1, box: 'C-2' },
-  ];
-  save(dummy);
+// ===== API =====
+async function api(method, path, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers: HEADERS,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
 }
 
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
+const db = {
+  list:   ()           => api('GET',   'stock?select=*&order=name.asc'),
+  insert: (row)        => api('POST',  'stock', row),
+  update: (id, patch)  => api('PATCH', `stock?id=eq.${id}`, patch),
+};
 
 // ===== STATE =====
+let items = [];        // キャッシュ
 let currentTab = 'in';
 
 // ===== INIT =====
-initDummy();
-populateSelects();
-renderTable();
+(async () => {
+  setSyncStatus('loading', '読込中…');
+  try {
+    items = await db.list();
+    setSyncStatus('ok', '同期済み');
+    populateSelects();
+    renderTable();
+  } catch (e) {
+    setSyncStatus('err', '接続エラー');
+    showMsg('err', 'Supabaseへの接続に失敗しました: ' + e.message);
+  }
+})();
+
+// ===== SYNC STATUS =====
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
 
 // ===== TAB =====
 function switchTab(tab) {
@@ -496,14 +425,11 @@ function switchTab(tab) {
 
 // ===== SELECTS =====
 function populateSelects() {
-  const data = load();
-  const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-
   ['in-item', 'out-item'].forEach(id => {
     const sel = document.getElementById(id);
     const prev = sel.value;
     sel.innerHTML = `<option value="">— 品目を選ぶ —</option>`;
-    sorted.forEach(item => {
+    items.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.id;
       opt.textContent = id === 'out-item'
@@ -517,16 +443,14 @@ function populateSelects() {
 
 // ===== 入庫 =====
 function onInItemChange() {
-  const data = load();
   const id = document.getElementById('in-item').value;
   if (!id) { document.getElementById('in-box').value = ''; return; }
-  const item = data.find(i => i.id === id);
+  const item = items.find(i => i.id === id);
   if (item) document.getElementById('in-box').value = item.box || '';
-  cancelNewItem();
-  clearMsg();
+  cancelNewItem(); clearMsg();
 }
 
-function doIn() {
+async function doIn() {
   const id  = document.getElementById('in-item').value;
   const qty = parseInt(document.getElementById('in-qty').value);
   const box = document.getElementById('in-box').value.trim();
@@ -534,18 +458,28 @@ function doIn() {
   if (!id)        return showMsg('err', '品目を選んでください。');
   if (!qty || qty < 1) return showMsg('err', '数量は1以上を入力してください。');
 
-  const data = load();
-  const item = data.find(i => i.id === id);
+  const item = items.find(i => i.id === id);
   if (!item) return showMsg('err', '品目が見つかりません。');
 
-  item.qty += qty;
-  if (box) item.box = box;
-  save(data);
+  setLoading('btn-in', true);
+  setSyncStatus('loading', '更新中…');
+  try {
+    const patch = { qty: item.qty + qty };
+    if (box) patch.box = box;
+    const [updated] = await db.update(id, patch);
+    Object.assign(item, updated);
 
-  showMsg('ok', `✓ ${item.name} を ${qty}個 入庫しました（合計 ${item.qty}個）`);
-  document.getElementById('in-qty').value = 1;
-  populateSelects();
-  renderTable();
+    showMsg('ok', `✓ ${item.name} を ${qty}個 入庫しました（合計 ${item.qty}個）`);
+    document.getElementById('in-qty').value = 1;
+    setSyncStatus('ok', '同期済み');
+    populateSelects();
+    renderTable();
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showMsg('err', '入庫に失敗しました: ' + e.message);
+  } finally {
+    setLoading('btn-in', false);
+  }
 }
 
 // ===== 新規登録 =====
@@ -561,36 +495,37 @@ function cancelNewItem() {
   document.getElementById('new-item-row').classList.remove('visible');
   document.getElementById('new-name').value = '';
 }
-function addNewItem() {
+async function addNewItem() {
   const name = document.getElementById('new-name').value.trim();
-  if (!name) { showMsg('err', '品名を入力してください。'); return; }
+  if (!name) return showMsg('err', '品名を入力してください。');
+  if (items.find(i => i.name === name)) return showMsg('err', 'その品名はすでに登録されています。');
 
-  const data = load();
-  if (data.find(i => i.name === name)) {
-    showMsg('err', 'その品名はすでに登録されています。');
-    return;
+  setSyncStatus('loading', '登録中…');
+  try {
+    const [newItem] = await db.insert({ name, qty: 0, box: '' });
+    items.push(newItem);
+    items.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+    populateSelects();
+    document.getElementById('in-item').value = newItem.id;
+    cancelNewItem();
+    renderTable();
+    document.getElementById('in-box').focus();
+    setSyncStatus('ok', '同期済み');
+    showMsg('ok', `✓ 「${name}」を登録しました。数量・保管場所を入力して入庫してください。`);
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showMsg('err', '登録に失敗しました: ' + e.message);
   }
-
-  const newItem = { id: uid(), name, qty: 0, box: '' };
-  data.push(newItem);
-  save(data);
-
-  populateSelects();
-  document.getElementById('in-item').value = newItem.id;
-  cancelNewItem();
-  renderTable();
-  document.getElementById('in-box').focus();
-  showMsg('ok', `✓ 「${name}」を登録しました。数量・保管場所を入力して入庫してください。`);
 }
 
 // ===== 出庫 =====
 function onOutItemChange() {
-  const data = load();
   const id = document.getElementById('out-item').value;
   const wrap = document.getElementById('out-current-wrap');
   const disp = document.getElementById('out-current-display');
   if (!id) { wrap.style.display = 'none'; return; }
-  const item = data.find(i => i.id === id);
+  const item = items.find(i => i.id === id);
   if (item) {
     disp.textContent = `${item.qty} 個`;
     disp.style.color = item.qty === 0 ? 'var(--danger)' : 'var(--text)';
@@ -599,44 +534,46 @@ function onOutItemChange() {
   clearMsg();
 }
 
-function doOut() {
+async function doOut() {
   const id  = document.getElementById('out-item').value;
   const qty = parseInt(document.getElementById('out-qty').value);
 
   if (!id)        return showMsg('err', '品目を選んでください。');
   if (!qty || qty < 1) return showMsg('err', '数量は1以上を入力してください。');
 
-  const data = load();
-  const item = data.find(i => i.id === id);
+  const item = items.find(i => i.id === id);
   if (!item) return showMsg('err', '品目が見つかりません。');
-
   if (item.qty - qty < 0) {
     return showMsg('err', `在庫不足です。現在庫 ${item.qty}個 に対して ${qty}個 の出庫はできません。`);
   }
 
-  item.qty -= qty;
-  save(data);
+  setLoading('btn-out', true);
+  setSyncStatus('loading', '更新中…');
+  try {
+    const [updated] = await db.update(id, { qty: item.qty - qty });
+    Object.assign(item, updated);
 
-  showMsg('ok', `✓ ${item.name} を ${qty}個 出庫しました（残 ${item.qty}個）`);
-  document.getElementById('out-qty').value = 1;
-  onOutItemChange();
-  populateSelects();
-  renderTable();
+    showMsg('ok', `✓ ${item.name} を ${qty}個 出庫しました（残 ${item.qty}個）`);
+    document.getElementById('out-qty').value = 1;
+    onOutItemChange();
+    setSyncStatus('ok', '同期済み');
+    populateSelects();
+    renderTable();
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showMsg('err', '出庫に失敗しました: ' + e.message);
+  } finally {
+    setLoading('btn-out', false);
+  }
 }
 
 // ===== TABLE =====
 function renderTable() {
-  const data  = load();
   const query = document.getElementById('search').value.trim().toLowerCase();
-  const filtered = data
-    .filter(i => !query || i.name.toLowerCase().includes(query))
-    .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-
+  const filtered = items.filter(i => !query || i.name.toLowerCase().includes(query));
   const tbody = document.getElementById('stock-tbody');
   const empty = document.getElementById('empty-msg');
-  const count = document.getElementById('item-count');
-
-  count.textContent = `${data.length}件`;
+  document.getElementById('item-count').textContent = `${items.length}件`;
 
   if (filtered.length === 0) {
     tbody.innerHTML = '';
@@ -644,12 +581,11 @@ function renderTable() {
     return;
   }
   empty.style.display = 'none';
-
   tbody.innerHTML = filtered.map(item => `
     <tr>
       <td class="td-name">${esc(item.name)}</td>
       <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-      <td class="td-box"><span class="box-tag">${esc(item.box || '—')}</span></td>
+      <td><span class="box-tag">${esc(item.box || '—')}</span></td>
     </tr>
   `).join('');
 }
@@ -660,15 +596,19 @@ function showMsg(type, text) {
   el.className = `msg ${type}`;
   el.textContent = text;
   clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = 'msg'; }, 4000);
+  el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
 }
-function clearMsg() {
-  document.getElementById('msg').className = 'msg';
-}
+function clearMsg() { document.getElementById('msg').className = 'msg'; }
 function esc(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  if (btnId === 'btn-in')  btn.textContent = loading ? '処理中…' : '入庫する';
+  if (btnId === 'btn-out') btn.textContent = loading ? '処理中…' : '出庫する';
 }
 
 // Enter キーで送信
