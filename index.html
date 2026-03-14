@@ -531,7 +531,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead>
+        <thead id="stock-thead">
           <tr>
             <th>品名</th>
             <th style="text-align:right">在庫数</th>
@@ -776,13 +776,16 @@ let deleteMode = false;
 function toggleDeleteMode() {
   deleteMode = !deleteMode;
   const btn = document.getElementById('btn-delete-mode');
+  const thead = document.getElementById('stock-thead');
   if (deleteMode) {
     btn.textContent = 'キャンセル';
     btn.classList.add('active');
-    editingId = null; // 編集中なら閉じる
+    editingId = null;
+    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
   } else {
     btn.textContent = '削除する';
     btn.classList.remove('active');
+    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
   }
   renderTable();
 }
