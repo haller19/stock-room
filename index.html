@@ -287,6 +287,22 @@
   }
   .btn-delete:hover:not(:disabled) { background: var(--danger); color: #fff; }
 
+  /* ===== 保管場所候補チップ ===== */
+  .box-chips {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-top: 6px; min-height: 0;
+  }
+  .box-chip {
+    padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--accent-mid);
+    background: var(--accent-light); color: var(--accent);
+    font-size: 11px; font-family: var(--mono); font-weight: 500;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .box-chip:hover, .box-chip.selected {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+
   /* ===== 削除モードボタン（一覧ヘッダー） ===== */
   .btn-delete-mode {
     margin-left: auto;
@@ -399,6 +415,8 @@
     .edit-row input[type="text"] { background: #0e1f1f; }
     .dialog { background: #152828; border-color: #1e3a3a; }
     .btn-delete { border-color: var(--danger); color: var(--danger); }
+    .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
+    .box-chip:hover, .box-chip.selected { background: var(--accent); color: #1a2e2e; }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
     .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
@@ -428,9 +446,6 @@
     </div>
   </div>
 </div>
-
-<!-- 保管場所サジェスト -->
-<datalist id="box-list"></datalist>
 
 <header>
   <h1>📦 ストック管理</h1>
@@ -486,7 +501,8 @@
         </div>
         <div class="form-group">
           <label>保管場所（箱番号）</label>
-          <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" list="box-list" autocomplete="off">
+          <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off">
+          <div class="box-chips" id="in-box-chips"></div>
         </div>
 
         <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
@@ -631,14 +647,38 @@ function populateSelects() {
   });
 }
 
-// ===== 保管場所リスト =====
-function populateBoxList() {
-  const dl = document.getElementById('box-list');
-  if (!dl) return;
-  // 重複排除・空除去・ソート
-  const boxes = [...new Set(items.map(i => i.box).filter(b => b && b.trim()))]
+// ===== 保管場所候補チップ =====
+function getBoxList() {
+  return [...new Set(items.map(i => i.box).filter(b => b && b.trim()))]
     .sort((a, b) => a.localeCompare(b, 'ja'));
-  dl.innerHTML = boxes.map(b => `<option value="${esc(b)}">`).join('');
+}
+
+function renderBoxChips(chipsId, inputId) {
+  const wrap = document.getElementById(chipsId);
+  if (!wrap) return;
+  const boxes = getBoxList();
+  if (boxes.length === 0) { wrap.innerHTML = ''; return; }
+  const inputEl = document.getElementById(inputId);
+  wrap.innerHTML = '';
+  boxes.forEach(box => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'box-chip' + (inputEl && inputEl.value === box ? ' selected' : '');
+    btn.textContent = box;
+    btn.addEventListener('click', () => {
+      if (inputEl) {
+        inputEl.value = box;
+        // selected状態を更新
+        wrap.querySelectorAll('.box-chip').forEach(b => b.classList.toggle('selected', b.textContent === box));
+      }
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function populateBoxList() {
+  renderBoxChips('in-box-chips', 'in-box');
+  renderBoxChips('edit-box-chips', 'edit-box');
 }
 
 // ===== 入庫 =====
@@ -848,7 +888,8 @@ function renderTable() {
             </div>
             <div>
               <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
-              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" list="box-list" autocomplete="off">
+              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" autocomplete="off">
+              <div class="box-chips" id="edit-box-chips"></div>
             </div>
           </div>
           <div class="edit-actions">
@@ -858,7 +899,7 @@ function renderTable() {
         </td>
       `;
       tbody.appendChild(editTr);
-      setTimeout(() => { document.getElementById('edit-box')?.focus(); }, 0);
+      setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
     }
   });
 }
