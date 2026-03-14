@@ -280,6 +280,57 @@
   }
   .edit-actions { display: flex; gap: 6px; margin-top: 10px; }
   .edit-actions .btn { flex: 1; padding: 7px 8px; font-size: 12px; border-radius: 6px; }
+  .btn-delete {
+    background: none; border: 1px solid var(--danger);
+    color: var(--danger); flex: 0 0 auto !important;
+    width: auto !important; padding: 7px 12px !important;
+  }
+  .btn-delete:hover:not(:disabled) { background: var(--danger); color: #fff; }
+
+  /* ===== 削除モードボタン（一覧ヘッダー） ===== */
+  .btn-delete-mode {
+    margin-left: auto;
+    padding: 4px 12px; font-size: 11px; font-weight: 600;
+    border: 1.5px solid var(--border-dark); border-radius: 20px;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; letter-spacing: .04em;
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn-delete-mode:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-delete-mode.active { border-color: var(--danger); color: var(--danger); background: rgba(224,92,92,.07); }
+
+  /* 行内削除ボタン */
+  .td-del-btn {
+    width: 1px; padding: 8px 10px 8px 4px !important;
+  }
+  .row-del-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1.5px solid var(--danger); background: transparent;
+    color: var(--danger); font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all .15s; line-height: 1;
+  }
+  .row-del-btn:hover { background: var(--danger); color: #fff; }
+
+  /* ===== 確認ダイアログ ===== */
+  .dialog-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .dialog-overlay.visible { display: flex; }
+  .dialog {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px 24px 20px;
+    width: min(320px, 90vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    text-align: center;
+  }
+  .dialog h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .dialog p  { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+  .dialog p strong { color: var(--text); font-weight: 600; }
+  .dialog-actions { display: flex; gap: 8px; }
+  .dialog-actions .btn { flex: 1; padding: 10px; font-size: 13px; border-radius: 8px; }
   .edit-hint {
     font-size: 11px; color: var(--text-muted);
     padding: 5px 14px 8px; text-align: right; letter-spacing: .02em;
@@ -346,6 +397,8 @@
 
     .edit-row td { background: var(--accent-light) !important; }
     .edit-row input[type="text"] { background: #0e1f1f; }
+    .dialog { background: #152828; border-color: #1e3a3a; }
+    .btn-delete { border-color: var(--danger); color: var(--danger); }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
     .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
@@ -363,6 +416,21 @@
 <script src="config.js"></script>
 </head>
 <body>
+
+<!-- ===== 削除確認ダイアログ ===== -->
+<div class="dialog-overlay" id="delete-overlay">
+  <div class="dialog">
+    <h3>🗑 アイテムを削除</h3>
+    <p id="delete-msg">この操作は元に戻せません。</p>
+    <div class="dialog-actions">
+      <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeDeleteDialog()">キャンセル</button>
+      <button class="btn btn-danger" id="btn-confirm-delete" onclick="confirmDelete()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保管場所サジェスト -->
+<datalist id="box-list"></datalist>
 
 <header>
   <h1>📦 ストック管理</h1>
@@ -418,7 +486,7 @@
         </div>
         <div class="form-group">
           <label>保管場所（箱番号）</label>
-          <input type="text" id="in-box" placeholder="例：A-3" maxlength="20">
+          <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" list="box-list" autocomplete="off">
         </div>
 
         <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
@@ -454,6 +522,7 @@
     <div class="card-header">
       <h2>在庫一覧</h2>
       <span class="badge" id="item-count">…</span>
+      <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()">削除する</button>
     </div>
     <div class="card-body" style="padding-bottom:0">
       <div class="search-row">
@@ -500,9 +569,10 @@ async function api(method, path, body) {
 }
 
 const db = {
-  list:   ()           => api('GET',   'stock?select=*&order=name.asc'),
-  insert: (row)        => api('POST',  'stock', row),
-  update: (id, patch)  => api('PATCH', `stock?id=eq.${id}`, patch),
+  list:   ()           => api('GET',    'stock?select=*&order=name.asc'),
+  insert: (row)        => api('POST',   'stock', row),
+  update: (id, patch)  => api('PATCH',  `stock?id=eq.${id}`, patch),
+  delete: (id)         => api('DELETE', `stock?id=eq.${id}`),
 };
 
 // ===== STATE =====
@@ -516,6 +586,7 @@ let currentTab = 'in';
     items = await db.list();
     setSyncStatus('ok', '同期済み');
     populateSelects();
+    populateBoxList();
     renderTable();
   } catch (e) {
     setSyncStatus('err', '接続エラー');
@@ -539,7 +610,7 @@ function switchTab(tab) {
   document.getElementById('tab-in').classList.toggle('active',  tab === 'in');
   document.getElementById('tab-out').classList.toggle('active', tab === 'out');
   clearMsg();
-  if (tab === 'out') cancelNewItem();
+  if (tab !== 'in') cancelNewItem();
 }
 
 // ===== SELECTS =====
@@ -558,6 +629,16 @@ function populateSelects() {
     });
     if (prev) sel.value = prev;
   });
+}
+
+// ===== 保管場所リスト =====
+function populateBoxList() {
+  const dl = document.getElementById('box-list');
+  if (!dl) return;
+  // 重複排除・空除去・ソート
+  const boxes = [...new Set(items.map(i => i.box).filter(b => b && b.trim()))]
+    .sort((a, b) => a.localeCompare(b, 'ja'));
+  dl.innerHTML = boxes.map(b => `<option value="${esc(b)}">`).join('');
 }
 
 // ===== 入庫 =====
@@ -592,6 +673,7 @@ async function doIn() {
     document.getElementById('in-qty').value = 1;
     setSyncStatus('ok', '同期済み');
     populateSelects();
+    populateBoxList();
     renderTable();
   } catch (e) {
     setSyncStatus('err', 'エラー');
@@ -626,6 +708,7 @@ async function addNewItem() {
     items.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 
     populateSelects();
+    populateBoxList();
     document.getElementById('in-item').value = newItem.id;
     cancelNewItem();
     renderTable();
@@ -688,6 +771,21 @@ async function doOut() {
 
 // ===== TABLE =====
 let editingId = null;
+let deleteMode = false;
+
+function toggleDeleteMode() {
+  deleteMode = !deleteMode;
+  const btn = document.getElementById('btn-delete-mode');
+  if (deleteMode) {
+    btn.textContent = 'キャンセル';
+    btn.classList.add('active');
+    editingId = null; // 編集中なら閉じる
+  } else {
+    btn.textContent = '削除する';
+    btn.classList.remove('active');
+  }
+  renderTable();
+}
 
 function renderTable() {
   const query = document.getElementById('search').value.trim().toLowerCase();
@@ -704,19 +802,35 @@ function renderTable() {
     return;
   }
   empty.style.display = 'none';
-  if (hint) hint.style.display = '';
+  if (hint) hint.style.display = deleteMode ? 'none' : '';
 
   tbody.innerHTML = '';
   filtered.forEach(item => {
     const tr = document.createElement('tr');
     tr.dataset.id = item.id;
     if (editingId === item.id) tr.classList.add('editing');
-    tr.innerHTML = `
-      <td class="td-name">${esc(item.name)}</td>
-      <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-      <td><span class="box-tag">${esc(item.box || '—')}</span></td>
-    `;
-    tr.addEventListener('click', () => toggleEditRow(item.id));
+
+    if (deleteMode) {
+      tr.innerHTML = `
+        <td class="td-del-btn">
+          <button class="row-del-btn" title="削除">✕</button>
+        </td>
+        <td class="td-name">${esc(item.name)}</td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+      `;
+      tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteDialog(item.id);
+      });
+    } else {
+      tr.innerHTML = `
+        <td class="td-name">${esc(item.name)}</td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+      `;
+      tr.addEventListener('click', () => toggleEditRow(item.id));
+    }
     tbody.appendChild(tr);
 
     if (editingId === item.id) {
@@ -731,12 +845,12 @@ function renderTable() {
             </div>
             <div>
               <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
-              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3">
+              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" list="box-list" autocomplete="off">
             </div>
           </div>
           <div class="edit-actions">
             <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
-            <button class="btn" style="background:var(--bg);border:1px solid var(--border)" onclick="closeEdit()">キャンセル</button>
+            <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
           </div>
         </td>
       `;
@@ -774,10 +888,58 @@ async function saveEdit(id) {
     setSyncStatus('ok', '同期済み');
     showMsg('ok', `✓ 「${item.name}」の情報を更新しました。`);
     populateSelects();
+    populateBoxList();
     renderTable();
   } catch (e) {
     setSyncStatus('err', 'エラー');
     showMsg('err', '更新に失敗しました: ' + e.message);
+  }
+}
+
+// ===== 削除 =====
+let deleteTargetId = null;
+
+function openDeleteDialog(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  deleteTargetId = id;
+  document.getElementById('delete-msg').innerHTML =
+    `<strong>${esc(item.name)}</strong> を削除します。<br>在庫数: ${item.qty}個。この操作は元に戻せません。`;
+  document.getElementById('delete-overlay').classList.add('visible');
+}
+function closeDeleteDialog() {
+  deleteTargetId = null;
+  document.getElementById('delete-overlay').classList.remove('visible');
+}
+async function confirmDelete() {
+  if (!deleteTargetId) return;
+  const id   = deleteTargetId;
+  const item = items.find(i => i.id === id);
+  const name = item?.name || '';
+
+  const btn = document.getElementById('btn-confirm-delete');
+  btn.disabled = true; btn.textContent = '削除中…';
+  setSyncStatus('loading', '削除中…');
+  try {
+    await db.delete(id);
+    items = items.filter(i => i.id !== id);
+    editingId = null;
+    closeDeleteDialog();
+    // 全品目削除したら削除モードも解除
+    if (items.length === 0) {
+      deleteMode = false;
+      document.getElementById('btn-delete-mode').textContent = '削除する';
+      document.getElementById('btn-delete-mode').classList.remove('active');
+    }
+    setSyncStatus('ok', '同期済み');
+    showMsg('ok', `✓ 「${name}」を削除しました。`);
+    populateSelects();
+    renderTable();
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showMsg('err', '削除に失敗しました: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '削除する';
   }
 }
 
@@ -813,7 +975,18 @@ document.addEventListener('keydown', e => {
     if (currentTab === 'in')  doIn();
     if (currentTab === 'out') doOut();
   }
-  if (e.key === 'Escape' && editingId) closeEdit();
+  if (e.key === 'Escape') {
+    if (document.getElementById('delete-overlay').classList.contains('visible')) {
+      closeDeleteDialog();
+    } else if (editingId) {
+      closeEdit();
+    }
+  }
+});
+
+// オーバーレイ外クリックでダイアログを閉じる
+document.getElementById('delete-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDeleteDialog();
 });
 </script>
 </body>
