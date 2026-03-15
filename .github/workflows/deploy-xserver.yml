@@ -25,7 +25,7 @@ jobs:
       - name: Test SSH connection
         shell: bash
         run: |
-          ssh -vvv -p 10022 -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.XSERVER_USER }}@${{ secrets.XSERVER_HOST }} exit
+          ssh -p 10022 -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes ${{ secrets.XSERVER_USER }}@${{ secrets.XSERVER_HOST }} exit
 
       - name: Deploy via rsync
         shell: bash
