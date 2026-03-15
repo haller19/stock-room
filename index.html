@@ -649,7 +649,6 @@ const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSession = null;
 
 async function signInWithGoogle() {
-  // ハッシュを除いたクリーンなURLをリダイレクト先に使用
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await sbClient.auth.signInWithOAuth({
     provider: 'google',
@@ -663,7 +662,6 @@ async function signInWithGoogle() {
 async function signOut() {
   await sbClient.auth.signOut();
   currentSession = null;
-  // URLのハッシュをクリア
   history.replaceState(null, '', window.location.pathname);
   showLoginScreen();
 }
@@ -675,6 +673,21 @@ function showLoginScreen() {
 function hideLoginScreen() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-root').classList.add('visible');
+}
+
+async function checkAndLogin(session) {
+  const email = session?.user?.email;
+  if (!email || !ALLOWED_EMAILS.includes(email)) {
+    await sbClient.auth.signOut();
+    history.replaceState(null, '', window.location.pathname);
+    document.querySelector('.login-note').textContent = 'このアカウントはアクセスできません。';
+    showLoginScreen();
+    return false;
+  }
+  currentSession = session;
+  hideLoginScreen();
+  await initApp();
+  return true;
 }
 
 // ===== API =====
@@ -721,27 +734,21 @@ async function initApp() {
 
 // 認証状態の監視・初期化
 (async () => {
-  // セッション取得（コールバックURLのハッシュからも自動でセッションを復元）
   const { data: { session } } = await sbClient.auth.getSession();
 
-  // セッション取得後にURLハッシュをクリア
   if (window.location.hash) {
     history.replaceState(null, '', window.location.pathname);
   }
+
   if (session) {
-    currentSession = session;
-    hideLoginScreen();
-    await initApp();
+    await checkAndLogin(session);
   } else {
     showLoginScreen();
   }
 
-  // 認証状態の変化を監視（ログイン・ログアウト・トークン更新）
   sbClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
-      currentSession = session;
-      hideLoginScreen();
-      await initApp();
+      await checkAndLogin(session);
     } else if (event === 'SIGNED_OUT') {
       currentSession = null;
       showLoginScreen();

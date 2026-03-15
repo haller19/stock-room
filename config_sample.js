@@ -11,3 +11,8 @@ function getHeaders(accessToken) {
     'Prefer': 'return=representation'
   };
 }
+
+// ===== アクセス許可アカウント =====
+const ALLOWED_EMAILS = [
+  'test@gmail.com',
+  'hoge@gmail.com'
