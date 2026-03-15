@@ -367,6 +367,45 @@
   }
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+  /* ===== ログイン画面 ===== */
+  #login-screen {
+    display: none;
+    position: fixed; inset: 0; z-index: 300;
+    background: var(--bg);
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 0;
+  }
+  #login-screen.visible { display: flex; }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px 32px;
+    width: min(340px, 90vw);
+    box-shadow: 0 4px 32px rgba(10,173,160,.10);
+    text-align: center;
+  }
+  .login-card img { height: 36px; width: auto; margin-bottom: 28px; }
+  .login-card h2 {
+    font-size: 14px; font-weight: 600;
+    color: var(--text-muted); margin-bottom: 28px;
+    letter-spacing: .04em;
+  }
+  .btn-google {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 12px;
+    border: 1.5px solid var(--border-dark); border-radius: 8px;
+    background: var(--surface); color: var(--text);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-google:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .btn-google svg { flex-shrink: 0; }
+  .login-note {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 20px; line-height: 1.6;
+  }
+
   /* ===== DARK MODE ===== */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -432,14 +471,37 @@
       background-size: 200% 100%;
     }
 
+    #login-screen { background: #0e1f1f; }
+    .login-card { background: #152828; border-color: #1e3a3a; }
+    .btn-google { background: #152828; border-color: #2a5050; color: var(--text); }
+    .btn-google:hover { background: var(--accent-light); border-color: var(--accent); }
     .btn { color: #fff; }
     .btn-primary { box-shadow: 0 2px 10px rgba(47,207,184,.15); }
     .btn-danger  { box-shadow: 0 2px 10px rgba(240,112,112,.15); }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 </head>
 <body>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="login-screen">
+  <div class="login-card">
+    <img src="zaiko_header_logo.svg" alt="zaiko">
+    <h2>ログインしてください</h2>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      </svg>
+      Googleアカウントでログイン
+    </button>
+    <p class="login-note">登録済みのGoogleアカウントのみ<br>アクセスできます</p>
+  </div>
+</div>
 
 <!-- ===== 削除確認ダイアログ ===== -->
 <div class="dialog-overlay" id="delete-overlay">
@@ -462,6 +524,7 @@
       <span class="sync-dot" id="sync-dot"></span>
       <span id="sync-label">接続中…</span>
     </div>
+    <button onclick="signOut()" style="background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px;" title="ログアウト">ログアウト</button>
   </div>
 </header>
 
@@ -577,11 +640,36 @@
 </div>
 
 <script>
+// ===== SUPABASE AUTH =====
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentSession = null;
+
+async function signInWithGoogle() {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+}
+
+async function signOut() {
+  await supabase.auth.signOut();
+  currentSession = null;
+  showLoginScreen();
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('visible');
+}
+function hideLoginScreen() {
+  document.getElementById('login-screen').classList.remove('visible');
+}
+
 // ===== API =====
 async function api(method, path, body) {
+  const token = currentSession?.access_token || SUPABASE_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
-    headers: HEADERS,
+    headers: getHeaders(token),
     body: body ? JSON.stringify(body) : undefined
   });
   if (!res.ok) {
@@ -600,11 +688,11 @@ const db = {
 };
 
 // ===== STATE =====
-let items = [];        // キャッシュ
+let items = [];
 let currentTab = 'in';
 
 // ===== INIT =====
-(async () => {
+async function initApp() {
   setSyncStatus('loading', '読込中…');
   try {
     items = await db.list();
@@ -614,8 +702,35 @@ let currentTab = 'in';
     renderTable();
   } catch (e) {
     setSyncStatus('err', '接続エラー');
-    showMsg('err', 'Supabaseへの接続に失敗しました: ' + e.message);
+    showMsg('err', 'データの取得に失敗しました: ' + e.message);
   }
+}
+
+// 認証状態の監視・初期化
+(async () => {
+  // セッション取得
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    currentSession = session;
+    hideLoginScreen();
+    await initApp();
+  } else {
+    showLoginScreen();
+  }
+
+  // 認証状態の変化を監視（ログイン・ログアウト・トークン更新）
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentSession = session;
+      hideLoginScreen();
+      await initApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentSession = null;
+      showLoginScreen();
+    } else if (event === 'TOKEN_REFRESHED' && session) {
+      currentSession = session;
+    }
+  });
 })();
 
 // ===== SYNC STATUS =====
