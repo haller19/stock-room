@@ -2,5 +2,8 @@
 .env.local
 config.js
 .htaccess
-/_notes
-_zaiko_header_logo.svg
+/_notes/
+*.xml
+_*.*
+*(*).*
+/icons/_notes
