@@ -4,16 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ストック管理</title>
+<link rel="preconnect" href="https://exuvgbfyucebhtmfrwek.supabase.co">
 <link rel="icon" href="favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="zaiko">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
 <meta name="theme-color" content="#0aada0">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
-
   :root {
     --bg:           #f0fafa;
     --surface:      #ffffff;
@@ -28,8 +27,8 @@
     --danger:       #e05c5c;
     --danger-hover: #c44444;
     --success:      #1a9e8a;
-    --mono: 'DM Mono', monospace;
-    --sans: 'Noto Sans JP', sans-serif;
+    --mono: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1041,6 +1040,54 @@ document.addEventListener('keydown', e => {
 document.getElementById('delete-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeDeleteDialog();
 });
+
+// ===== 自動更新（60秒ごと）=====
+const AUTO_REFRESH_INTERVAL = 60 * 1000;
+
+async function autoRefresh() {
+  // 操作中（編集・削除ダイアログ表示中）はスキップ
+  if (editingId) return;
+  if (document.getElementById('delete-overlay').classList.contains('visible')) return;
+
+  try {
+    const latest = await db.list();
+    // データに変化があった場合のみ再描画
+    if (JSON.stringify(latest) !== JSON.stringify(items)) {
+      items = latest;
+      populateSelects();
+      populateBoxList();
+      renderTable();
+      setSyncStatus('ok', '更新しました');
+      setTimeout(() => setSyncStatus('ok', '同期済み'), 2000);
+    }
+  } catch (e) {
+    setSyncStatus('err', '更新失敗');
+    setTimeout(() => setSyncStatus('ok', '同期済み'), 3000);
+  }
+}
+
+// ページが表示状態のときだけ更新（バックグラウンド時は停止）
+let refreshTimer = null;
+
+function startAutoRefresh() {
+  if (refreshTimer) return;
+  refreshTimer = setInterval(autoRefresh, AUTO_REFRESH_INTERVAL);
+}
+function stopAutoRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    autoRefresh();       // 画面復帰時に即リフレッシュ
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+});
+
+startAutoRefresh();
 
 // ===== SERVICE WORKER 登録 =====
 if ('serviceWorker' in navigator) {
