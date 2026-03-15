@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v5';
+const CACHE_VERSION = 'zaiko-v7';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
@@ -9,14 +9,17 @@ const PRECACHE_ASSETS = [
   '/stock-room/zaiko_header_logo.svg',
   '/stock-room/favicon.ico',
   '/stock-room/icons/icon-180.png',
-  '/stock-room/icons/icon-192.png',
   '/stock-room/icons/icon-512.png',
 ];
 
-// ===== インストール: 静的ファイルをキャッシュ =====
+// ===== インストール: 静的ファイルをキャッシュ（個別に試みて失敗しても続行）=====
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then(cache => cache.addAll(PRECACHE_ASSETS))
+    caches.open(CACHE_VERSION).then(cache =>
+      Promise.allSettled(
+        PRECACHE_ASSETS.map(url => cache.add(url).catch(() => {}))
+      )
+    )
   );
   self.skipWaiting();
 });
@@ -53,6 +56,9 @@ self.addEventListener('fetch', event => {
   }
 
   // 静的ファイル: キャッシュ優先、なければネットワーク取得してキャッシュ
+  // http/https以外（chrome-extensionなど）はスキップ
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;

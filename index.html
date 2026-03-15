@@ -369,13 +369,15 @@
 
   /* ===== ログイン画面 ===== */
   #login-screen {
-    display: none;
+    display: flex;
     position: fixed; inset: 0; z-index: 300;
     background: var(--bg);
     align-items: center; justify-content: center;
     flex-direction: column; gap: 0;
   }
-  #login-screen.visible { display: flex; }
+  #login-screen.hidden { display: none; }
+  #app-root { display: none; }
+  #app-root.visible { display: contents; }
   .login-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -515,6 +517,7 @@
   </div>
 </div>
 
+<div id="app-root">
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
@@ -638,30 +641,40 @@
   </div>
 
 </div>
+</div><!-- /#app-root -->
 
 <script>
 // ===== SUPABASE AUTH =====
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentSession = null;
 
 async function signInWithGoogle() {
-  await supabase.auth.signInWithOAuth({
+  // ハッシュを除いたクリーンなURLをリダイレクト先に使用
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await sbClient.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.href }
+    options: { redirectTo }
   });
+  if (error) {
+    alert('ログインエラー: ' + error.message);
+  }
 }
 
 async function signOut() {
-  await supabase.auth.signOut();
+  await sbClient.auth.signOut();
   currentSession = null;
+  // URLのハッシュをクリア
+  history.replaceState(null, '', window.location.pathname);
   showLoginScreen();
 }
 
 function showLoginScreen() {
-  document.getElementById('login-screen').classList.add('visible');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app-root').classList.remove('visible');
 }
 function hideLoginScreen() {
-  document.getElementById('login-screen').classList.remove('visible');
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-root').classList.add('visible');
 }
 
 // ===== API =====
@@ -708,8 +721,13 @@ async function initApp() {
 
 // 認証状態の監視・初期化
 (async () => {
-  // セッション取得
-  const { data: { session } } = await supabase.auth.getSession();
+  // セッション取得（コールバックURLのハッシュからも自動でセッションを復元）
+  const { data: { session } } = await sbClient.auth.getSession();
+
+  // セッション取得後にURLハッシュをクリア
+  if (window.location.hash) {
+    history.replaceState(null, '', window.location.pathname);
+  }
   if (session) {
     currentSession = session;
     hideLoginScreen();
@@ -719,7 +737,7 @@ async function initApp() {
   }
 
   // 認証状態の変化を監視（ログイン・ログアウト・トークン更新）
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  sbClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
       currentSession = session;
       hideLoginScreen();
