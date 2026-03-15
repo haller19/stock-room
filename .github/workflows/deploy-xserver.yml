@@ -1,0 +1,40 @@
+name: Deploy to Xserver
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-xserver
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.XSERVER_KEY }}" > ~/.ssh/xserver.key
+          chmod 600 ~/.ssh/xserver.key
+          ssh-keyscan -p 10022 ${{ secrets.XSERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via rsync
+        shell: bash
+        run: |
+          rsync -avz \
+            --exclude ".git/" \
+            --exclude ".github/" \
+            --exclude ".vscode/" \
+            --exclude "node_modules/" \
+            --exclude ".DS_Store" \
+            -e "ssh -p 10022 -i ~/.ssh/xserver.key" \
+            ./ \
+            ${{ secrets.XSERVER_USER }}@${{ secrets.XSERVER_HOST }}:${{ secrets.XSERVER_REMOTE_PATH }}/
