@@ -183,5 +183,5 @@ const ALLOWED_EMAILS = [
 ## 注意事項
 
 - `config.js` にはAPIキーと許可アカウント情報が含まれます。Gitリポジトリで管理する場合は `.gitignore` に追加してください
-- Supabase無料プランの制限：月50万APIリクエスト。2人での通常利用では問題ありません
+- Supabase無料プランの制限：月50万APIリクエスト。2人での通常利用では問題ないはず
 - Service Worker更新後に反映されない場合は、ブラウザのキャッシュをクリアしてください（Chrome: DevTools → Application → Storage → Clear site data）
