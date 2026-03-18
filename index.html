@@ -767,7 +767,10 @@ async function doIn() {
     Object.assign(item, updated);
 
     showMsg('ok', `✓ ${item.name} を ${qty}個 入庫しました（合計 ${item.qty}個）`);
+    document.getElementById('in-item').value = '';
     document.getElementById('in-qty').value = 1;
+    document.getElementById('in-box').value = '';
+    document.getElementById('in-box-chips').innerHTML = '';
     setSyncStatus('ok', '同期済み');
     populateSelects();
     populateBoxList();
@@ -853,8 +856,9 @@ async function doOut() {
     Object.assign(item, updated);
 
     showMsg('ok', `✓ ${item.name} を ${qty}個 出庫しました（残 ${item.qty}個）`);
+    document.getElementById('out-item').value = '';
     document.getElementById('out-qty').value = 1;
-    onOutItemChange();
+    document.getElementById('out-current-wrap').style.display = 'none';
     setSyncStatus('ok', '同期済み');
     populateSelects();
     renderTable();
