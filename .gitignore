@@ -7,3 +7,5 @@ config.js
 _*.*
 *(*).*
 /icons/_notes
+.vscode/
+.gitignore
