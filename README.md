@@ -160,6 +160,21 @@ const CACHE_VERSION = 'zaiko-v7'; // → 'zaiko-v8' に変更
 
 ## デプロイ手順
 
+### GitHub Actions（自動）
+
+`main` ブランチにプッシュすると、GitHub Actions が自動で Xserver に rsync デプロイします。
+
+必要な GitHub Secrets:
+
+| Secret名 | 内容 |
+|---|---|
+| `XSERVER_HOST` | Xserver のホスト名 |
+| `XSERVER_USER` | SSH ユーザー名 |
+| `XSERVER_KEY_B64` | SSH 秘密鍵（Base64エンコード） |
+| `XSERVER_REMOTE_PATH` | デプロイ先パス（例: `~/public_html/stock-room/`） |
+
+### 手動デプロイ
+
 1. XserverのファイルマネージャーまたはFTPで `public_html/stock-room/` にファイルをアップロード
 2. `config.js` の `SUPABASE_URL` / `SUPABASE_KEY` / `ALLOWED_EMAILS` を確認
 3. ブラウザで `https://yourdomain.com/stock-room/login/` にアクセスして動作確認
