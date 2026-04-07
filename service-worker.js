@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v7';
+const CACHE_VERSION = 'zaiko-v8';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
