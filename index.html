@@ -985,13 +985,29 @@ async function saveEdit(id) {
     return showMsg('err', 'その品名はすでに登録されています。');
   }
 
+  const oldBox = item.box || '';
+  const sameBoxItems = (oldBox && oldBox !== boxVal)
+    ? items.filter(i => i.id !== id && (i.box || '') === oldBox)
+    : [];
+
   setSyncStatus('loading', '更新中…');
   try {
     const [updated] = await db.update(id, { name: nameVal, box: boxVal });
     Object.assign(item, updated);
+
+    if (sameBoxItems.length > 0) {
+      await Promise.all(sameBoxItems.map(async other => {
+        const [updatedOther] = await db.update(other.id, { box: boxVal });
+        Object.assign(other, updatedOther);
+      }));
+    }
+
     editingId = null;
     setSyncStatus('ok', '同期済み');
-    showMsg('ok', `✓ 「${item.name}」の情報を更新しました。`);
+    const suffix = sameBoxItems.length > 0
+      ? `（保管場所「${oldBox}」の ${sameBoxItems.length + 1}件を一括更新）`
+      : '';
+    showMsg('ok', `✓ 「${item.name}」の情報を更新しました。${suffix}`);
     populateSelects();
     populateBoxList();
     renderTable();
