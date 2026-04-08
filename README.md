@@ -37,7 +37,7 @@ stock-room/
 ├── index.html               # アプリ本体（認証済みユーザーのみ表示）
 ├── config.js                # Supabase設定・許可アカウント定義
 ├── manifest.json            # PWAマニフェスト
-├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v7）
+├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v8）
 ├── favicon.ico              # ファビコン
 ├── zaiko_header_logo.svg    # ヘッダーロゴ
 ├── login/
@@ -64,6 +64,7 @@ stock-room/
 ### 保管場所入力
 - 既存の保管場所をチップボタンとして表示。タップで即入力
 - 新しい保管場所は自由入力も可能
+- 保管場所名を編集すると、同じ保管場所を持つ全アイテムに一括反映
 
 ### 自動更新
 - 60秒ごとにSupabaseからデータを再取得して一覧を自動更新
@@ -138,7 +139,7 @@ create policy "allow_authenticated"
 `service-worker.js` の1行目のバージョン番号を上げてアップロードしてください。
 
 ```javascript
-const CACHE_VERSION = 'zaiko-v7'; // → 'zaiko-v8' に変更
+const CACHE_VERSION = 'zaiko-v8'; // → 'zaiko-v9' に変更
 ```
 
 ---
