@@ -367,6 +367,30 @@
   }
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+  /* ===== MEMO ===== */
+  .memo-input-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: stretch; }
+  .memo-input-row input { flex: 1; min-height: 36px; }
+  .memo-input-row .btn { width: auto; padding: 6px 16px; font-size: 13px; align-self: stretch; }
+  .memo-list { display: flex; flex-direction: column; gap: 6px; }
+  .memo-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 12px;
+    background: var(--accent-light); border: 1px solid var(--accent-mid);
+    border-radius: 6px;
+  }
+  .memo-body { flex: 1; font-size: 14px; line-height: 1.5; word-break: break-word; }
+  .memo-time {
+    font-size: 10px; color: var(--text-muted); font-family: var(--mono);
+    white-space: nowrap; padding-top: 2px;
+  }
+  .memo-del {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px;
+    flex-shrink: 0;
+  }
+  .memo-del:hover { color: var(--danger); }
+  .memo-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0; }
+
   /* ===== DARK MODE ===== */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -470,6 +494,21 @@
 </header>
 
 <div class="container">
+
+  <!-- ===== MEMO ===== -->
+  <div class="card" style="grid-column: 1 / -1">
+    <div class="card-header"><h2>メモ</h2></div>
+    <div class="card-body">
+      <div class="msg" id="memo-msg"></div>
+      <div class="memo-input-row">
+        <input type="text" id="memo-input" placeholder="メモを入力…" maxlength="200" autocomplete="off">
+        <button class="btn btn-primary" onclick="addMemo()">追加</button>
+      </div>
+      <div class="memo-list" id="memo-list">
+        <div class="memo-empty">メモはありません</div>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== LEFT: 操作パネル ===== -->
   <div class="card">
@@ -578,6 +617,7 @@
     <div class="empty" id="empty-msg" style="display:none">登録された品目がありません</div>
   </div>
 
+
 </div>
 </div><!-- /#app-root -->
 
@@ -619,8 +659,15 @@ const db = {
   delete: (id)         => api('DELETE', `stock?id=eq.${id}`),
 };
 
+const memoDb = {
+  list:   ()     => api('GET',    'memo?select=*&order=created_at.desc'),
+  insert: (body) => api('POST',   'memo', { body }),
+  delete: (id)   => api('DELETE', `memo?id=eq.${id}`),
+};
+
 // ===== STATE =====
 let items = [];
+let memos = [];
 let currentTab = 'in';
 
 // ===== INIT =====
@@ -635,6 +682,12 @@ async function initApp() {
   } catch (e) {
     setSyncStatus('err', '接続エラー');
     showMsg('err', 'データの取得に失敗しました: ' + e.message);
+  }
+  try {
+    memos = await memoDb.list();
+    renderMemos();
+  } catch (e) {
+    showMemoMsg('err', 'メモの取得に失敗しました。Supabase に memo テーブルが存在するか確認してください。');
   }
 }
 
@@ -1065,6 +1118,63 @@ async function confirmDelete() {
   }
 }
 
+// ===== MEMO =====
+function renderMemos() {
+  const list = document.getElementById('memo-list');
+  if (memos.length === 0) {
+    list.innerHTML = '<div class="memo-empty">メモはありません</div>';
+    return;
+  }
+  list.innerHTML = memos.map(m => `
+    <div class="memo-item">
+      <span class="memo-body">${esc(m.body)}</span>
+      <span class="memo-time">${fmtMemoTime(m.created_at)}</span>
+      <button class="memo-del" onclick="deleteMemo('${m.id}')" title="削除">×</button>
+    </div>
+  `).join('');
+}
+
+function fmtMemoTime(ts) {
+  const d = new Date(ts);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}/${dd} ${hh}:${mi}`;
+}
+
+function showMemoMsg(type, text) {
+  const el = document.getElementById('memo-msg');
+  el.className = `msg ${type}`;
+  el.textContent = text;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
+}
+
+async function addMemo() {
+  const input = document.getElementById('memo-input');
+  const body = input.value.trim();
+  if (!body) return;
+  try {
+    const [m] = await memoDb.insert(body);
+    memos.unshift(m);
+    input.value = '';
+    renderMemos();
+  } catch (e) {
+    showMemoMsg('err', 'メモの追加に失敗しました: ' + e.message);
+  }
+}
+
+async function deleteMemo(id) {
+  try {
+    await memoDb.delete(id);
+    memos = memos.filter(m => m.id !== id);
+    renderMemos();
+  } catch (e) {
+    showMemoMsg('err', 'メモの削除に失敗しました: ' + e.message);
+  }
+}
+
 // ===== HELPERS =====
 function showMsg(type, text) {
   const el = document.getElementById('msg');
@@ -1094,6 +1204,7 @@ document.addEventListener('keydown', e => {
       if (editingId) saveEdit(editingId);
       return;
     }
+    if (e.target.id === 'memo-input') { addMemo(); return; }
     if (currentTab === 'in')  doIn();
     if (currentTab === 'out') doOut();
   }
@@ -1121,7 +1232,6 @@ async function autoRefresh() {
 
   try {
     const latest = await db.list();
-    // データに変化があった場合のみ再描画
     if (JSON.stringify(latest) !== JSON.stringify(items)) {
       items = latest;
       populateSelects();
@@ -1134,6 +1244,13 @@ async function autoRefresh() {
     setSyncStatus('err', '更新失敗');
     setTimeout(() => setSyncStatus('ok', '同期済み'), 3000);
   }
+  try {
+    const latestMemos = await memoDb.list();
+    if (JSON.stringify(latestMemos) !== JSON.stringify(memos)) {
+      memos = latestMemos;
+      renderMemos();
+    }
+  } catch (_) {}
 }
 
 // ページが表示状態のときだけ更新（バックグラウンド時は停止）
