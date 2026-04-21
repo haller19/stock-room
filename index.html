@@ -391,6 +391,31 @@
   .memo-del:hover { color: var(--danger); }
   .memo-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0; }
 
+  /* ===== 保管場所管理モーダル ===== */
+  .box-mgr-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .box-mgr-desc {
+    font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;
+  }
+  .box-mgr-list { display: flex; flex-direction: column; }
+  .box-mgr-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+  .box-mgr-row:last-child { border-bottom: none; }
+  .box-mgr-name { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .box-mgr-count { font-size: 11px; color: var(--text-muted); font-family: var(--mono); white-space: nowrap; }
+  .box-mgr-edit-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .box-mgr-edit-row input {
+    flex: 1; padding: 7px 9px; font-size: 13px;
+    border: 1.5px solid var(--accent); border-radius: 6px;
+    background: #fff; color: var(--text);
+  }
+  .box-mgr-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 16px 0; }
+
   /* ===== DARK MODE ===== */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -447,6 +472,7 @@
     .btn-delete { border-color: var(--danger); color: var(--danger); }
     .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
     .box-chip:hover, .box-chip.selected { background: var(--accent); color: #1a2e2e; }
+    .box-mgr-edit-row input { background: #0e1f1f; }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
     .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
@@ -466,6 +492,22 @@
 </head>
 <body>
 
+<!-- ===== 保管場所管理ダイアログ ===== -->
+<div class="dialog-overlay" id="box-manager-overlay">
+  <div class="dialog" style="width:min(480px,92vw);text-align:left">
+    <div class="box-mgr-header">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text)">保管場所を管理</h3>
+      <button onclick="closeBoxManager()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+    </div>
+    <p class="box-mgr-desc">保管場所名を変更すると、その場所に登録されているすべての在庫に反映されます。</p>
+    <div id="box-mgr-msg" class="msg" style="margin-bottom:10px"></div>
+    <div class="box-mgr-list" id="box-manager-list"></div>
+    <div style="margin-top:16px">
+      <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeBoxManager()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 削除確認ダイアログ ===== -->
 <div class="dialog-overlay" id="delete-overlay">
   <div class="dialog">
@@ -482,7 +524,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v9</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v10</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -589,7 +631,8 @@
     <div class="card-header">
       <h2>在庫一覧</h2>
       <span class="badge" id="item-count">…</span>
-      <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()">削除する</button>
+      <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
+      <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
     </div>
     <div class="card-body" style="padding-bottom:0">
       <div class="search-row">
@@ -653,10 +696,11 @@ async function api(method, path, body) {
 }
 
 const db = {
-  list:   ()           => api('GET',    'stock?select=*&order=name.asc'),
-  insert: (row)        => api('POST',   'stock', row),
-  update: (id, patch)  => api('PATCH',  `stock?id=eq.${id}`, patch),
-  delete: (id)         => api('DELETE', `stock?id=eq.${id}`),
+  list:        ()              => api('GET',    'stock?select=*&order=name.asc'),
+  insert:      (row)           => api('POST',   'stock', row),
+  update:      (id, patch)     => api('PATCH',  `stock?id=eq.${id}`, patch),
+  delete:      (id)            => api('DELETE', `stock?id=eq.${id}`),
+  updateByBox: (box, patch)    => api('PATCH',  `stock?box=eq.${encodeURIComponent(box)}`, patch),
 };
 
 const memoDb = {
@@ -1039,29 +1083,14 @@ async function saveEdit(id) {
     return showMsg('err', 'その品名はすでに登録されています。');
   }
 
-  const oldBox = item.box || '';
-  const sameBoxItems = (oldBox && oldBox !== boxVal)
-    ? items.filter(i => i.id !== id && (i.box || '') === oldBox)
-    : [];
-
   setSyncStatus('loading', '更新中…');
   try {
     const [updated] = await db.update(id, { name: nameVal, box: boxVal });
     Object.assign(item, updated);
 
-    if (sameBoxItems.length > 0) {
-      await Promise.all(sameBoxItems.map(async other => {
-        const [updatedOther] = await db.update(other.id, { box: boxVal });
-        Object.assign(other, updatedOther);
-      }));
-    }
-
     editingId = null;
     setSyncStatus('ok', '同期済み');
-    const suffix = sameBoxItems.length > 0
-      ? `（保管場所「${oldBox}」の ${sameBoxItems.length + 1}件を一括更新）`
-      : '';
-    showMsg('ok', `✓ 「${item.name}」の情報を更新しました。${suffix}`);
+    showMsg('ok', `✓ 「${item.name}」の情報を更新しました。`);
     populateSelects();
     populateBoxList();
     renderTable();
@@ -1115,6 +1144,101 @@ async function confirmDelete() {
     showMsg('err', '削除に失敗しました: ' + e.message);
   } finally {
     btn.disabled = false; btn.textContent = '削除する';
+  }
+}
+
+// ===== 保管場所管理 =====
+let boxEditingName = null;
+
+function openBoxManager() {
+  boxEditingName = null;
+  renderBoxManagerList();
+  document.getElementById('box-manager-overlay').classList.add('visible');
+}
+
+function closeBoxManager() {
+  document.getElementById('box-manager-overlay').classList.remove('visible');
+  boxEditingName = null;
+}
+
+function renderBoxManagerList() {
+  const boxes = getBoxList();
+  const container = document.getElementById('box-manager-list');
+
+  if (boxes.length === 0) {
+    container.innerHTML = '<div class="box-mgr-empty">保管場所が登録されていません。</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  boxes.forEach(box => {
+    const count = items.filter(i => (i.box || '') === box).length;
+    const div = document.createElement('div');
+    div.className = 'box-mgr-row';
+
+    if (boxEditingName === box) {
+      div.innerHTML = `
+        <div class="box-mgr-edit-row">
+          <input type="text" id="box-rename-input" value="${esc(box)}" maxlength="20" autocomplete="off">
+          <button class="btn btn-primary btn-sm" onclick="saveBoxRename('${esc(box)}')">保存</button>
+          <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="cancelBoxRename()">キャンセル</button>
+        </div>
+      `;
+      setTimeout(() => {
+        const el = document.getElementById('box-rename-input');
+        if (el) { el.focus(); el.select(); }
+      }, 0);
+    } else {
+      div.innerHTML = `
+        <div class="box-mgr-name">
+          <span class="box-tag">${esc(box)}</span>
+          <span class="box-mgr-count">${count}件</span>
+        </div>
+        <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="startBoxRename('${esc(box)}')">名前を変更</button>
+      `;
+    }
+    container.appendChild(div);
+  });
+}
+
+function startBoxRename(box) {
+  boxEditingName = box;
+  renderBoxManagerList();
+}
+
+function cancelBoxRename() {
+  boxEditingName = null;
+  renderBoxManagerList();
+}
+
+function showBoxManagerMsg(type, text) {
+  const el = document.getElementById('box-mgr-msg');
+  el.className = `msg ${type}`;
+  el.textContent = text;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
+}
+
+async function saveBoxRename(oldBox) {
+  const newBox = document.getElementById('box-rename-input')?.value.trim() || '';
+  if (!newBox) { showBoxManagerMsg('err', '保管場所名を入力してください。'); return; }
+  if (newBox === oldBox) { cancelBoxRename(); return; }
+
+  const targetItems = items.filter(i => (i.box || '') === oldBox);
+  setSyncStatus('loading', '更新中…');
+  try {
+    await db.updateByBox(oldBox, { box: newBox });
+    targetItems.forEach(item => { item.box = newBox; });
+
+    boxEditingName = null;
+    setSyncStatus('ok', '同期済み');
+    renderBoxManagerList();
+    populateBoxList();
+    renderTable();
+    showBoxManagerMsg('ok', `✓ 「${oldBox}」→「${newBox}」に変更しました（${targetItems.length}件）`);
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showBoxManagerMsg('err', '更新に失敗しました: ' + e.message);
   }
 }
 
@@ -1211,15 +1335,23 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (document.getElementById('delete-overlay').classList.contains('visible')) {
       closeDeleteDialog();
+    } else if (document.getElementById('box-manager-overlay').classList.contains('visible')) {
+      if (boxEditingName) { cancelBoxRename(); } else { closeBoxManager(); }
     } else if (editingId) {
       closeEdit();
     }
+  }
+  if (e.key === 'Enter' && e.target.id === 'box-rename-input') {
+    saveBoxRename(boxEditingName);
   }
 });
 
 // オーバーレイ外クリックでダイアログを閉じる
 document.getElementById('delete-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeDeleteDialog();
+});
+document.getElementById('box-manager-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeBoxManager();
 });
 
 // ===== 自動更新（60秒ごと）=====
