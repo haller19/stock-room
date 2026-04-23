@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v7'` → `'zaiko-v8'`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v10'` → `'zaiko-v11'`). Also update the version label in `index.html` header (`<span>v10</span>`).
 
 ## Database Schema
 
@@ -53,14 +53,17 @@ Table: stock
 **API layer** (in `index.html`):
 ```javascript
 const db = {
-  list:   ()         => api('GET',    'stock?select=*&order=name.asc'),
-  insert: (row)      => api('POST',   'stock', row),
-  update: (id, patch)=> api('PATCH',  `stock?id=eq.${id}`, patch),
-  delete: (id)       => api('DELETE', `stock?id=eq.${id}`),
+  list:        ()           => api('GET',    'stock?select=*&order=name.asc'),
+  insert:      (row)        => api('POST',   'stock', row),
+  update:      (id, patch)  => api('PATCH',  `stock?id=eq.${id}`, patch),
+  delete:      (id)         => api('DELETE', `stock?id=eq.${id}`),
+  updateByBox: (box, patch) => api('PATCH',  `stock?box=eq.${encodeURIComponent(box)}`, patch),
 };
 ```
 
-**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode` — direct DOM manipulation, no framework.
+**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName` — direct DOM manipulation, no framework.
+
+**Storage location management**: `box` field acts as a grouping category. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
 
 **Auto-refresh**: Every 60 seconds when page is visible; pauses in background.
 
