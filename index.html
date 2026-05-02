@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ストック管理</title>
+<title>ZAIKO</title>
 <link rel="preconnect" href="https://exuvgbfyucebhtmfrwek.supabase.co">
 <link rel="icon" href="favicon.ico">
 <link rel="manifest" href="manifest.json">
@@ -418,7 +418,8 @@
 
   /* ===== グループ表示 ===== */
   .box-group-header-row td {
-    padding: 0;
+    padding: 10px !important;
+    width:100%;
     background: var(--accent-light) !important;
     border-top: 6px solid var(--bg);
     border-bottom: 1px solid var(--accent-mid) !important;
@@ -1172,7 +1173,7 @@ function renderGroupView(filtered) {
     const headerTr = document.createElement('tr');
     headerTr.className = 'box-group-header-row';
     headerTr.innerHTML = `
-      <td colspan="2" class="box-group-header-cell">
+      <td class="box-group-header-cell">
         <span class="box-group-toggle${isCollapsed ? ' collapsed' : ''}">▼</span>
         <span class="box-tag">${esc(box)}</span>
         <span class="box-group-count">${groupItems.length}件</span>
