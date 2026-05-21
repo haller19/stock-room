@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v10'` → `'zaiko-v11'`). Also update the version label in `index.html` header (`<span>v10</span>`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v11'` → `'zaiko-v12'`). Also update the version label in `index.html` header (`<span>v11</span>`).
 
 ## Database Schema
 
@@ -61,9 +61,11 @@ const db = {
 };
 ```
 
-**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName` — direct DOM manipulation, no framework.
+**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
 
 **Storage location management**: `box` field acts as a grouping category. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
+
+**Group view**: "グループ表示" button in the 在庫一覧 header toggles `groupView` mode. When active, `renderTable` dispatches to `renderGroupView(filtered)`, which groups items by `box`, renders collapsible section headers (click to toggle), and sorts boxes alphabetically with empty-box items last. `groupView` and `deleteMode` are mutually exclusive. `collapsedBoxes` is a `Set<string>` of currently collapsed box names; it clears when group view is turned off.
 
 **Auto-refresh**: Every 60 seconds when page is visible; pauses in background.
 

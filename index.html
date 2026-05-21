@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ストック管理</title>
+<title>ZAIKO</title>
 <link rel="preconnect" href="https://exuvgbfyucebhtmfrwek.supabase.co">
 <link rel="icon" href="favicon.ico">
 <link rel="manifest" href="manifest.json">
@@ -221,22 +221,6 @@
   /* ===== TABLE ===== */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-
-  /* グループヘッダー */
-  .box-group-header { cursor: pointer; user-select: none; }
-  .box-group-header:hover td { background: var(--accent-mid) !important; }
-  .box-group-header td {
-    padding: 8px 14px !important;
-    background: var(--accent-light);
-    border-bottom: 1px solid var(--accent-mid);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .box-group-left { display: flex; align-items: center; gap: 6px; }
-  .box-group-toggle { color: var(--accent); font-size: 10px; font-weight: 700; min-width: 10px; }
-  .box-group-count { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
-
   th {
     font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .09em;
@@ -432,6 +416,33 @@
   }
   .box-mgr-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 16px 0; }
 
+  /* ===== グループ表示 ===== */
+  .box-group-header-row td {
+    padding: 10px !important;
+    width:100%;
+    background: var(--accent-light) !important;
+    border-top: 6px solid var(--bg);
+    border-bottom: 1px solid var(--accent-mid) !important;
+  }
+  .box-group-header-row:first-child td { border-top: 0; }
+  .box-group-header-cell {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    cursor: pointer; user-select: none;
+  }
+  .box-group-header-row:hover td { filter: brightness(.96); }
+  .box-group-toggle {
+    font-size: 9px; display: inline-block;
+    transition: transform .2s; color: var(--accent);
+  }
+  .box-group-toggle.collapsed { transform: rotate(-90deg); }
+  .box-group-count {
+    margin-left: auto; font-size: 11px;
+    color: var(--text-muted); font-family: var(--mono);
+  }
+  .box-group-item-name { padding-left: 28px !important; }
+  .box-group-item-row { cursor: default; }
+
   /* ===== DARK MODE ===== */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -489,8 +500,6 @@
     .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
     .box-chip:hover, .box-chip.selected { background: var(--accent); color: #1a2e2e; }
     .box-mgr-edit-row input { background: #0e1f1f; }
-    .box-group-header:hover td { background: var(--accent-mid) !important; }
-    .box-group-header td { background: var(--accent-light); }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
     .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
@@ -542,7 +551,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v10</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v11</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -650,6 +659,7 @@
       <h2>在庫一覧</h2>
       <span class="badge" id="item-count">…</span>
       <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
+      <button class="btn-delete-mode" id="btn-group-view" onclick="toggleGroupView()" style="margin-left:0">グループ表示</button>
       <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
     </div>
     <div class="card-body" style="padding-bottom:0">
@@ -663,6 +673,7 @@
           <tr>
             <th>品名</th>
             <th style="text-align:right">在庫数</th>
+            <th>保管場所</th>
           </tr>
         </thead>
         <tbody id="stock-tbody">
@@ -988,21 +999,24 @@ async function doOut() {
 // ===== TABLE =====
 let editingId = null;
 let deleteMode = false;
-let collapsedBoxes = new Set();
+let groupView = false;
+const collapsedBoxes = new Set();
 
 function toggleDeleteMode() {
   deleteMode = !deleteMode;
   const btn = document.getElementById('btn-delete-mode');
-  const thead = document.getElementById('stock-thead');
   if (deleteMode) {
     btn.textContent = 'キャンセル';
     btn.classList.add('active');
     editingId = null;
-    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th></tr>';
+    if (groupView) {
+      groupView = false;
+      document.getElementById('btn-group-view').classList.remove('active');
+      collapsedBoxes.clear();
+    }
   } else {
     btn.textContent = '削除する';
     btn.classList.remove('active');
-    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th></tr>';
   }
   renderTable();
 }
@@ -1015,6 +1029,15 @@ function renderTable() {
   const hint  = document.getElementById('edit-hint');
   document.getElementById('item-count').textContent = `${items.length}件`;
 
+  const thead = document.getElementById('stock-thead');
+  if (groupView) {
+    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th></tr>';
+  } else if (deleteMode) {
+    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+  } else {
+    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+  }
+
   if (filtered.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = '';
@@ -1022,98 +1045,69 @@ function renderTable() {
     return;
   }
   empty.style.display = 'none';
+
+  if (groupView) {
+    if (hint) hint.style.display = 'none';
+    renderGroupView(filtered);
+    return;
+  }
+
   if (hint) hint.style.display = deleteMode ? 'none' : '';
 
-  // 保管場所でグループ化
-  const groups = new Map();
-  filtered.forEach(item => {
-    const key = item.box || '';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
-  });
-  const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
-    if (!a && !b) return 0;
-    if (!a) return 1;
-    if (!b) return -1;
-    return a.localeCompare(b, 'ja');
-  });
-
   tbody.innerHTML = '';
+  filtered.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = item.id;
+    if (editingId === item.id) tr.classList.add('editing');
 
-  sortedGroups.forEach(([box, groupItems]) => {
-    const isCollapsed = collapsedBoxes.has(box);
-    const colSpan = deleteMode ? 3 : 2;
+    if (deleteMode) {
+      tr.innerHTML = `
+        <td class="td-del-btn">
+          <button class="row-del-btn" title="削除">✕</button>
+        </td>
+        <td class="td-name">${esc(item.name)}</td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+      `;
+      tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDeleteDialog(item.id);
+      });
+    } else {
+      tr.innerHTML = `
+        <td class="td-name">${esc(item.name)}</td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+      `;
+      tr.addEventListener('click', () => toggleEditRow(item.id));
+    }
+    tbody.appendChild(tr);
 
-    // グループヘッダー行（全幅クリック）
-    const groupTr = document.createElement('tr');
-    groupTr.className = 'box-group-header';
-    groupTr.innerHTML = `
-      <td colspan="${colSpan}">
-        <span class="box-group-left">
-          <span class="box-group-toggle">${isCollapsed ? '▶' : '▼'}</span>
-          <span class="box-tag">${esc(box || '未設定')}</span>
-        </span>
-        <span class="box-group-count">${groupItems.length}件</span>
-      </td>
-    `;
-    groupTr.addEventListener('click', () => {
-      if (collapsedBoxes.has(box)) { collapsedBoxes.delete(box); } else { collapsedBoxes.add(box); }
-      renderTable();
-    });
-    tbody.appendChild(groupTr);
-
-    if (isCollapsed) return;
-
-    groupItems.forEach(item => {
-      const tr = document.createElement('tr');
-      tr.dataset.id = item.id;
-      if (editingId === item.id) tr.classList.add('editing');
-
-      if (deleteMode) {
-        tr.innerHTML = `
-          <td class="td-del-btn"><button class="row-del-btn" title="削除">✕</button></td>
-          <td class="td-name">${esc(item.name)}</td>
-          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        `;
-        tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          openDeleteDialog(item.id);
-        });
-      } else {
-        tr.innerHTML = `
-          <td class="td-name">${esc(item.name)}</td>
-          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        `;
-        tr.addEventListener('click', () => toggleEditRow(item.id));
-      }
-      tbody.appendChild(tr);
-
-      if (editingId === item.id) {
-        const editTr = document.createElement('tr');
-        editTr.className = 'edit-row';
-        editTr.innerHTML = `
-          <td colspan="${colSpan}">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
-              <div>
-                <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">品名</label>
-                <input type="text" id="edit-name" value="${esc(item.name)}" maxlength="40">
-              </div>
-              <div>
-                <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
-                <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" autocomplete="off">
-                <div class="box-chips" id="edit-box-chips"></div>
-              </div>
+    if (editingId === item.id) {
+      const editTr = document.createElement('tr');
+      editTr.className = 'edit-row';
+      editTr.innerHTML = `
+        <td colspan="3">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
+            <div>
+              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">品名</label>
+              <input type="text" id="edit-name" value="${esc(item.name)}" maxlength="40">
             </div>
-            <div class="edit-actions">
-              <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
-              <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
+            <div>
+              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
+              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" autocomplete="off">
+              <div class="box-chips" id="edit-box-chips"></div>
             </div>
-          </td>
-        `;
-        tbody.appendChild(editTr);
-        setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
-      }
-    });
+          </div>
+          <div class="edit-actions">
+            <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
+            <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(editTr);
+      setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
+    }
   });
 }
 
@@ -1124,6 +1118,82 @@ function toggleEditRow(id) {
 function closeEdit() {
   editingId = null;
   renderTable();
+}
+
+// ===== グループ表示 =====
+function toggleGroupView() {
+  groupView = !groupView;
+  const btn = document.getElementById('btn-group-view');
+  btn.classList.toggle('active', groupView);
+  if (groupView) {
+    if (deleteMode) {
+      deleteMode = false;
+      const delBtn = document.getElementById('btn-delete-mode');
+      delBtn.textContent = '削除する';
+      delBtn.classList.remove('active');
+    }
+    editingId = null;
+  } else {
+    collapsedBoxes.clear();
+  }
+  renderTable();
+}
+
+function toggleBoxCollapse(box) {
+  if (collapsedBoxes.has(box)) {
+    collapsedBoxes.delete(box);
+  } else {
+    collapsedBoxes.add(box);
+  }
+  renderTable();
+}
+
+function renderGroupView(filtered) {
+  const tbody = document.getElementById('stock-tbody');
+  tbody.innerHTML = '';
+
+  const noBox = '（場所なし）';
+  const groups = new Map();
+  filtered.forEach(item => {
+    const key = (item.box || '').trim() || noBox;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+
+  const sortedKeys = [...groups.keys()].sort((a, b) => {
+    if (a === noBox) return 1;
+    if (b === noBox) return -1;
+    return a.localeCompare(b, 'ja');
+  });
+
+  sortedKeys.forEach(box => {
+    const groupItems = groups.get(box);
+    const isCollapsed = collapsedBoxes.has(box);
+
+    const headerTr = document.createElement('tr');
+    headerTr.className = 'box-group-header-row';
+    headerTr.innerHTML = `
+      <td class="box-group-header-cell">
+        <span class="box-group-toggle${isCollapsed ? ' collapsed' : ''}">▼</span>
+        <span class="box-tag">${esc(box)}</span>
+        <span class="box-group-count">${groupItems.length}件</span>
+      </td>
+    `;
+    headerTr.addEventListener('click', () => toggleBoxCollapse(box));
+    tbody.appendChild(headerTr);
+
+    if (!isCollapsed) {
+      groupItems.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'box-group-item-row';
+        tr.innerHTML = `
+          <td class="td-name box-group-item-name">${esc(item.name)}</td>
+          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  });
 }
 
 async function saveEdit(id) {
