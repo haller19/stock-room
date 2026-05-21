@@ -221,6 +221,22 @@
   /* ===== TABLE ===== */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  /* グループヘッダー */
+  .box-group-header { cursor: pointer; user-select: none; }
+  .box-group-header:hover td { background: var(--accent-mid) !important; }
+  .box-group-header td {
+    padding: 8px 14px !important;
+    background: var(--accent-light);
+    border-bottom: 1px solid var(--accent-mid);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .box-group-left { display: flex; align-items: center; gap: 6px; }
+  .box-group-toggle { color: var(--accent); font-size: 10px; font-weight: 700; min-width: 10px; }
+  .box-group-count { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+
   th {
     font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .09em;
@@ -473,6 +489,8 @@
     .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
     .box-chip:hover, .box-chip.selected { background: var(--accent); color: #1a2e2e; }
     .box-mgr-edit-row input { background: #0e1f1f; }
+    .box-group-header:hover td { background: var(--accent-mid) !important; }
+    .box-group-header td { background: var(--accent-light); }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
     .msg.err { background: #2a1212; border-color: #5a2020; color: var(--danger); }
@@ -645,7 +663,6 @@
           <tr>
             <th>品名</th>
             <th style="text-align:right">在庫数</th>
-            <th>保管場所</th>
           </tr>
         </thead>
         <tbody id="stock-tbody">
@@ -971,6 +988,7 @@ async function doOut() {
 // ===== TABLE =====
 let editingId = null;
 let deleteMode = false;
+let collapsedBoxes = new Set();
 
 function toggleDeleteMode() {
   deleteMode = !deleteMode;
@@ -980,11 +998,11 @@ function toggleDeleteMode() {
     btn.textContent = 'キャンセル';
     btn.classList.add('active');
     editingId = null;
-    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th></tr>';
   } else {
     btn.textContent = '削除する';
     btn.classList.remove('active');
-    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th></tr>';
   }
   renderTable();
 }
@@ -1006,60 +1024,96 @@ function renderTable() {
   empty.style.display = 'none';
   if (hint) hint.style.display = deleteMode ? 'none' : '';
 
-  tbody.innerHTML = '';
+  // 保管場所でグループ化
+  const groups = new Map();
   filtered.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.dataset.id = item.id;
-    if (editingId === item.id) tr.classList.add('editing');
+    const key = item.box || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b, 'ja');
+  });
 
-    if (deleteMode) {
-      tr.innerHTML = `
-        <td class="td-del-btn">
-          <button class="row-del-btn" title="削除">✕</button>
-        </td>
-        <td class="td-name">${esc(item.name)}</td>
-        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
-      `;
-      tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openDeleteDialog(item.id);
-      });
-    } else {
-      tr.innerHTML = `
-        <td class="td-name">${esc(item.name)}</td>
-        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
-      `;
-      tr.addEventListener('click', () => toggleEditRow(item.id));
-    }
-    tbody.appendChild(tr);
+  tbody.innerHTML = '';
 
-    if (editingId === item.id) {
-      const editTr = document.createElement('tr');
-      editTr.className = 'edit-row';
-      editTr.innerHTML = `
-        <td colspan="3">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
-            <div>
-              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">品名</label>
-              <input type="text" id="edit-name" value="${esc(item.name)}" maxlength="40">
+  sortedGroups.forEach(([box, groupItems]) => {
+    const isCollapsed = collapsedBoxes.has(box);
+    const colSpan = deleteMode ? 3 : 2;
+
+    // グループヘッダー行（全幅クリック）
+    const groupTr = document.createElement('tr');
+    groupTr.className = 'box-group-header';
+    groupTr.innerHTML = `
+      <td colspan="${colSpan}">
+        <span class="box-group-left">
+          <span class="box-group-toggle">${isCollapsed ? '▶' : '▼'}</span>
+          <span class="box-tag">${esc(box || '未設定')}</span>
+        </span>
+        <span class="box-group-count">${groupItems.length}件</span>
+      </td>
+    `;
+    groupTr.addEventListener('click', () => {
+      if (collapsedBoxes.has(box)) { collapsedBoxes.delete(box); } else { collapsedBoxes.add(box); }
+      renderTable();
+    });
+    tbody.appendChild(groupTr);
+
+    if (isCollapsed) return;
+
+    groupItems.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.dataset.id = item.id;
+      if (editingId === item.id) tr.classList.add('editing');
+
+      if (deleteMode) {
+        tr.innerHTML = `
+          <td class="td-del-btn"><button class="row-del-btn" title="削除">✕</button></td>
+          <td class="td-name">${esc(item.name)}</td>
+          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        `;
+        tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDeleteDialog(item.id);
+        });
+      } else {
+        tr.innerHTML = `
+          <td class="td-name">${esc(item.name)}</td>
+          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+        `;
+        tr.addEventListener('click', () => toggleEditRow(item.id));
+      }
+      tbody.appendChild(tr);
+
+      if (editingId === item.id) {
+        const editTr = document.createElement('tr');
+        editTr.className = 'edit-row';
+        editTr.innerHTML = `
+          <td colspan="${colSpan}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
+              <div>
+                <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">品名</label>
+                <input type="text" id="edit-name" value="${esc(item.name)}" maxlength="40">
+              </div>
+              <div>
+                <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
+                <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" autocomplete="off">
+                <div class="box-chips" id="edit-box-chips"></div>
+              </div>
             </div>
-            <div>
-              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
-              <input type="text" id="edit-box" value="${esc(item.box || '')}" maxlength="20" placeholder="例：A-3" autocomplete="off">
-              <div class="box-chips" id="edit-box-chips"></div>
+            <div class="edit-actions">
+              <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
+              <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
             </div>
-          </div>
-          <div class="edit-actions">
-            <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
-            <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(editTr);
-      setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
-    }
+          </td>
+        `;
+        tbody.appendChild(editTr);
+        setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
+      }
+    });
   });
 }
 
