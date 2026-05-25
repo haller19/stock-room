@@ -418,8 +418,6 @@
 
   /* ===== グループ表示 ===== */
   .box-group-header-row td {
-    padding: 10px !important;
-    width:100%;
     background: var(--accent-light) !important;
     border-top: 6px solid var(--bg);
     border-bottom: 1px solid var(--accent-mid) !important;
@@ -1173,7 +1171,7 @@ function renderGroupView(filtered) {
     const headerTr = document.createElement('tr');
     headerTr.className = 'box-group-header-row';
     headerTr.innerHTML = `
-      <td class="box-group-header-cell">
+      <td colspan="2" class="box-group-header-cell">
         <span class="box-group-toggle${isCollapsed ? ' collapsed' : ''}">▼</span>
         <span class="box-tag">${esc(box)}</span>
         <span class="box-group-count">${groupItems.length}件</span>
