@@ -7,7 +7,11 @@
 --    これを設定しないと、誰でもAPIキーなしでデータにアクセスできます
 alter table stock enable row level security;
 
--- 2. anon（未認証）ユーザーに SELECT / INSERT / UPDATE を許可
+-- 2. カテゴリ列を追加（既存テーブル向け・再実行可）
+alter table stock
+  add column if not exists category text not null default '';
+
+-- 3. anon（未認証）ユーザーに SELECT / INSERT / UPDATE を許可
 --    Basic認証でフロントを守り、その内側からのアクセスを許可する設計
 create policy "allow_all_for_anon"
   on stock

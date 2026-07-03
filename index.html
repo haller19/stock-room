@@ -84,6 +84,8 @@
   }
   @media (max-width: 720px) {
     .container { grid-template-columns: 1fr; }
+    .card-header { flex-wrap: wrap; }
+    .card-header .btn-delete-mode { margin-left: 0 !important; }
   }
 
   /* ===== CARD ===== */
@@ -250,9 +252,19 @@
     background: var(--accent-light); color: var(--accent);
     font-weight: 500; white-space: nowrap;
   }
+  .category-tag {
+    display: inline-block; padding: 2px 9px;
+    border-radius: 20px;
+    border: 1px solid #bfd7ff;
+    font-size: 11px;
+    letter-spacing: .04em;
+    background: #eef5ff; color: #3765a8;
+    font-weight: 500; white-space: nowrap;
+  }
 
   .search-row { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
-  .search-row input { flex: 1; }
+  .search-row input { flex: 1; min-width: 0; }
+  .search-row select { width: 118px; flex: 0 0 auto; }
 
   .empty {
     text-align: center; padding: 36px 16px;
@@ -293,19 +305,20 @@
   }
   .btn-delete:hover:not(:disabled) { background: var(--danger); color: #fff; }
 
-  /* ===== 保管場所候補チップ ===== */
-  .box-chips {
+  /* ===== 保管場所・カテゴリ候補チップ ===== */
+  .box-chips, .category-chips {
     display: flex; flex-wrap: wrap; gap: 5px;
     margin-top: 6px; min-height: 0;
   }
-  .box-chip {
+  .box-chip, .category-chip {
     padding: 3px 10px; border-radius: 20px;
     border: 1px solid var(--accent-mid);
     background: var(--accent-light); color: var(--accent);
     font-size: 11px; font-family: var(--mono); font-weight: 500;
     cursor: pointer; transition: all .15s; white-space: nowrap;
   }
-  .box-chip:hover, .box-chip.selected {
+  .box-chip:hover, .box-chip.selected,
+  .category-chip:hover, .category-chip.selected {
     background: var(--accent); color: #fff; border-color: var(--accent);
   }
 
@@ -495,8 +508,11 @@
     .edit-row input[type="text"] { background: #0e1f1f; }
     .dialog { background: #152828; border-color: #1e3a3a; }
     .btn-delete { border-color: var(--danger); color: var(--danger); }
+    .category-tag { background: #10203a; border-color: #244a7a; color: #8bb8ff; }
     .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
-    .box-chip:hover, .box-chip.selected { background: var(--accent); color: #1a2e2e; }
+    .category-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
+    .box-chip:hover, .box-chip.selected,
+    .category-chip:hover, .category-chip.selected { background: var(--accent); color: #1a2e2e; }
     .box-mgr-edit-row input { background: #0e1f1f; }
 
     .msg.ok  { background: #0d2e2b; border-color: #1a4a46; color: var(--success); }
@@ -533,6 +549,22 @@
   </div>
 </div>
 
+<!-- ===== カテゴリ管理ダイアログ ===== -->
+<div class="dialog-overlay" id="category-manager-overlay">
+  <div class="dialog" style="width:min(480px,92vw);text-align:left">
+    <div class="box-mgr-header">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text)">カテゴリを管理</h3>
+      <button onclick="closeCategoryManager()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+    </div>
+    <p class="box-mgr-desc">カテゴリ名を変更すると、そのカテゴリに登録されているすべての在庫に反映されます。</p>
+    <div id="category-mgr-msg" class="msg" style="margin-bottom:10px"></div>
+    <div class="box-mgr-list" id="category-manager-list"></div>
+    <div style="margin-top:16px">
+      <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeCategoryManager()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 削除確認ダイアログ ===== -->
 <div class="dialog-overlay" id="delete-overlay">
   <div class="dialog">
@@ -549,7 +581,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v11</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v12</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -622,6 +654,11 @@
           <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off">
           <div class="box-chips" id="in-box-chips"></div>
         </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <input type="text" id="in-category" placeholder="例：台所用品" maxlength="30" autocomplete="off">
+          <div class="category-chips" id="in-category-chips"></div>
+        </div>
 
         <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
       </div>
@@ -657,12 +694,17 @@
       <h2>在庫一覧</h2>
       <span class="badge" id="item-count">…</span>
       <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
+      <button class="btn-delete-mode" onclick="openCategoryManager()" style="margin-left:0">カテゴリ管理</button>
       <button class="btn-delete-mode" id="btn-group-view" onclick="toggleGroupView()" style="margin-left:0">グループ表示</button>
       <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
     </div>
     <div class="card-body" style="padding-bottom:0">
       <div class="search-row">
         <input type="text" id="search" placeholder="品名で絞り込み…" oninput="renderTable()">
+        <select id="sort-mode" onchange="renderTable()">
+          <option value="name">品名順</option>
+          <option value="category">カテゴリ順</option>
+        </select>
       </div>
     </div>
     <div class="table-wrap">
@@ -670,15 +712,16 @@
         <thead id="stock-thead">
           <tr>
             <th>品名</th>
+            <th>カテゴリ</th>
             <th style="text-align:right">在庫数</th>
             <th>保管場所</th>
           </tr>
         </thead>
         <tbody id="stock-tbody">
           <!-- skeleton -->
-          <tr><td colspan="3"><div class="skeleton" style="width:60%"></div></td></tr>
-          <tr><td colspan="3"><div class="skeleton" style="width:75%"></div></td></tr>
-          <tr><td colspan="3"><div class="skeleton" style="width:50%"></div></td></tr>
+          <tr><td colspan="4"><div class="skeleton" style="width:60%"></div></td></tr>
+          <tr><td colspan="4"><div class="skeleton" style="width:75%"></div></td></tr>
+          <tr><td colspan="4"><div class="skeleton" style="width:50%"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -727,6 +770,7 @@ const db = {
   update:      (id, patch)     => api('PATCH',  `stock?id=eq.${id}`, patch),
   delete:      (id)            => api('DELETE', `stock?id=eq.${id}`),
   updateByBox: (box, patch)    => api('PATCH',  `stock?box=eq.${encodeURIComponent(box)}`, patch),
+  updateByCategory: (category, patch) => api('PATCH', `stock?category=eq.${encodeURIComponent(category)}`, patch),
 };
 
 const memoDb = {
@@ -747,7 +791,7 @@ async function initApp() {
     items = await db.list();
     setSyncStatus('ok', '同期済み');
     populateSelects();
-    populateBoxList();
+    populateInputChips();
     renderTable();
   } catch (e) {
     setSyncStatus('err', '接続エラー');
@@ -828,46 +872,67 @@ function populateSelects() {
   });
 }
 
-// ===== 保管場所候補チップ =====
+// ===== 保管場所・カテゴリ候補チップ =====
 function getBoxList() {
   return [...new Set(items.map(i => i.box).filter(b => b && b.trim()))]
     .sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
-function renderBoxChips(chipsId, inputId) {
+function getCategoryList() {
+  return [...new Set(items.map(i => i.category).filter(c => c && c.trim()))]
+    .sort((a, b) => a.localeCompare(b, 'ja'));
+}
+
+function renderValueChips(chipsId, inputId, values, chipClass) {
   const wrap = document.getElementById(chipsId);
   if (!wrap) return;
-  const boxes = getBoxList();
-  if (boxes.length === 0) { wrap.innerHTML = ''; return; }
+  if (values.length === 0) { wrap.innerHTML = ''; return; }
   const inputEl = document.getElementById(inputId);
   wrap.innerHTML = '';
-  boxes.forEach(box => {
+  values.forEach(value => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'box-chip' + (inputEl && inputEl.value === box ? ' selected' : '');
-    btn.textContent = box;
+    btn.className = chipClass + (inputEl && inputEl.value === value ? ' selected' : '');
+    btn.textContent = value;
     btn.addEventListener('click', () => {
       if (inputEl) {
-        inputEl.value = box;
+        inputEl.value = value;
         // selected状態を更新
-        wrap.querySelectorAll('.box-chip').forEach(b => b.classList.toggle('selected', b.textContent === box));
+        wrap.querySelectorAll(`.${chipClass}`).forEach(b => b.classList.toggle('selected', b.textContent === value));
       }
     });
     wrap.appendChild(btn);
   });
 }
 
-function populateBoxList() {
+function renderBoxChips(chipsId, inputId) {
+  renderValueChips(chipsId, inputId, getBoxList(), 'box-chip');
+}
+
+function renderCategoryChips(chipsId, inputId) {
+  renderValueChips(chipsId, inputId, getCategoryList(), 'category-chip');
+}
+
+function populateInputChips() {
   renderBoxChips('in-box-chips', 'in-box');
   renderBoxChips('edit-box-chips', 'edit-box');
+  renderCategoryChips('in-category-chips', 'in-category');
+  renderCategoryChips('edit-category-chips', 'edit-category');
 }
 
 // ===== 入庫 =====
 function onInItemChange() {
   const id = document.getElementById('in-item').value;
-  if (!id) { document.getElementById('in-box').value = ''; return; }
+  if (!id) {
+    document.getElementById('in-box').value = '';
+    document.getElementById('in-category').value = '';
+    return;
+  }
   const item = items.find(i => i.id === id);
-  if (item) document.getElementById('in-box').value = item.box || '';
+  if (item) {
+    document.getElementById('in-box').value = item.box || '';
+    document.getElementById('in-category').value = item.category || '';
+  }
   cancelNewItem(); clearMsg();
 }
 
@@ -875,6 +940,7 @@ async function doIn() {
   const id  = document.getElementById('in-item').value;
   const qty = parseInt(document.getElementById('in-qty').value);
   const box = document.getElementById('in-box').value.trim();
+  const category = document.getElementById('in-category').value.trim();
 
   if (!id)        return showMsg('err', '品目を選んでください。');
   if (!qty || qty < 1) return showMsg('err', '数量は1以上を入力してください。');
@@ -887,6 +953,7 @@ async function doIn() {
   try {
     const patch = { qty: item.qty + qty };
     if (box) patch.box = box;
+    if (category) patch.category = category;
     const [updated] = await db.update(id, patch);
     Object.assign(item, updated);
 
@@ -894,10 +961,12 @@ async function doIn() {
     document.getElementById('in-item').value = '';
     document.getElementById('in-qty').value = 1;
     document.getElementById('in-box').value = '';
+    document.getElementById('in-category').value = '';
     document.getElementById('in-box-chips').innerHTML = '';
+    document.getElementById('in-category-chips').innerHTML = '';
     setSyncStatus('ok', '同期済み');
     populateSelects();
-    populateBoxList();
+    populateInputChips();
     renderTable();
   } catch (e) {
     setSyncStatus('err', 'エラー');
@@ -932,13 +1001,13 @@ async function addNewItem() {
     items.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 
     populateSelects();
-    populateBoxList();
+    populateInputChips();
     document.getElementById('in-item').value = newItem.id;
     cancelNewItem();
     renderTable();
-    document.getElementById('in-box').focus();
+    document.getElementById('in-category').focus();
     setSyncStatus('ok', '同期済み');
-    showMsg('ok', `✓ 「${name}」を登録しました。数量・保管場所を入力して入庫してください。`);
+    showMsg('ok', `✓ 「${name}」を登録しました。数量・カテゴリ・保管場所を入力して入庫してください。`);
   } catch (e) {
     setSyncStatus('err', 'エラー');
     showMsg('err', '登録に失敗しました: ' + e.message);
@@ -1019,9 +1088,31 @@ function toggleDeleteMode() {
   renderTable();
 }
 
+function compareText(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'ja', { numeric: true });
+}
+
+function compareOptionalField(a, b, field) {
+  const av = (a[field] || '').trim();
+  const bv = (b[field] || '').trim();
+  if (!av && !bv) return compareText(a.name, b.name);
+  if (!av) return 1;
+  if (!bv) return -1;
+  return compareText(av, bv) || compareText(a.name, b.name);
+}
+
+function sortItemsForDisplay(list) {
+  const mode = document.getElementById('sort-mode')?.value || 'name';
+  const sorted = [...list];
+  if (mode === 'category') {
+    return sorted.sort((a, b) => compareOptionalField(a, b, 'category'));
+  }
+  return sorted.sort((a, b) => compareText(a.name, b.name));
+}
+
 function renderTable() {
   const query = document.getElementById('search').value.trim().toLowerCase();
-  const filtered = items.filter(i => !query || i.name.toLowerCase().includes(query));
+  const filtered = sortItemsForDisplay(items.filter(i => !query || i.name.toLowerCase().includes(query)));
   const tbody = document.getElementById('stock-tbody');
   const empty = document.getElementById('empty-msg');
   const hint  = document.getElementById('edit-hint');
@@ -1029,11 +1120,11 @@ function renderTable() {
 
   const thead = document.getElementById('stock-thead');
   if (groupView) {
-    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th></tr>';
+    thead.innerHTML = '<tr><th>品名</th><th>カテゴリ</th><th style="text-align:right">在庫数</th></tr>';
   } else if (deleteMode) {
-    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+    thead.innerHTML = '<tr><th style="width:1px"></th><th>品名</th><th>カテゴリ</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
   } else {
-    thead.innerHTML = '<tr><th>品名</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
+    thead.innerHTML = '<tr><th>品名</th><th>カテゴリ</th><th style="text-align:right">在庫数</th><th>保管場所</th></tr>';
   }
 
   if (filtered.length === 0) {
@@ -1064,6 +1155,7 @@ function renderTable() {
           <button class="row-del-btn" title="削除">✕</button>
         </td>
         <td class="td-name">${esc(item.name)}</td>
+        <td><span class="category-tag">${esc(item.category || '—')}</span></td>
         <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
         <td><span class="box-tag">${esc(item.box || '—')}</span></td>
       `;
@@ -1074,6 +1166,7 @@ function renderTable() {
     } else {
       tr.innerHTML = `
         <td class="td-name">${esc(item.name)}</td>
+        <td><span class="category-tag">${esc(item.category || '—')}</span></td>
         <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
         <td><span class="box-tag">${esc(item.box || '—')}</span></td>
       `;
@@ -1085,11 +1178,16 @@ function renderTable() {
       const editTr = document.createElement('tr');
       editTr.className = 'edit-row';
       editTr.innerHTML = `
-        <td colspan="3">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
+        <td colspan="4">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:0">
             <div>
               <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">品名</label>
               <input type="text" id="edit-name" value="${esc(item.name)}" maxlength="40">
+            </div>
+            <div>
+              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">カテゴリ</label>
+              <input type="text" id="edit-category" value="${esc(item.category || '')}" maxlength="30" placeholder="例：台所用品" autocomplete="off">
+              <div class="category-chips" id="edit-category-chips"></div>
             </div>
             <div>
               <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">保管場所（箱番号）</label>
@@ -1104,7 +1202,11 @@ function renderTable() {
         </td>
       `;
       tbody.appendChild(editTr);
-      setTimeout(() => { document.getElementById('edit-box')?.focus(); renderBoxChips('edit-box-chips', 'edit-box'); }, 0);
+      setTimeout(() => {
+        document.getElementById('edit-box')?.focus();
+        renderBoxChips('edit-box-chips', 'edit-box');
+        renderCategoryChips('edit-category-chips', 'edit-category');
+      }, 0);
     }
   });
 }
@@ -1171,7 +1273,7 @@ function renderGroupView(filtered) {
     const headerTr = document.createElement('tr');
     headerTr.className = 'box-group-header-row';
     headerTr.innerHTML = `
-      <td colspan="2" class="box-group-header-cell">
+      <td colspan="3" class="box-group-header-cell">
         <span class="box-group-toggle${isCollapsed ? ' collapsed' : ''}">▼</span>
         <span class="box-tag">${esc(box)}</span>
         <span class="box-group-count">${groupItems.length}件</span>
@@ -1186,6 +1288,7 @@ function renderGroupView(filtered) {
         tr.className = 'box-group-item-row';
         tr.innerHTML = `
           <td class="td-name box-group-item-name">${esc(item.name)}</td>
+          <td><span class="category-tag">${esc(item.category || '—')}</span></td>
           <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
         `;
         tbody.appendChild(tr);
@@ -1196,6 +1299,7 @@ function renderGroupView(filtered) {
 
 async function saveEdit(id) {
   const nameVal = document.getElementById('edit-name').value.trim();
+  const categoryVal = document.getElementById('edit-category').value.trim();
   const boxVal  = document.getElementById('edit-box').value.trim();
 
   if (!nameVal) return showMsg('err', '品名を入力してください。');
@@ -1207,14 +1311,18 @@ async function saveEdit(id) {
 
   setSyncStatus('loading', '更新中…');
   try {
-    const [updated] = await db.update(id, { name: nameVal, box: boxVal });
+    const patch = { name: nameVal, box: boxVal };
+    if (Object.prototype.hasOwnProperty.call(item, 'category') || categoryVal) {
+      patch.category = categoryVal;
+    }
+    const [updated] = await db.update(id, patch);
     Object.assign(item, updated);
 
     editingId = null;
     setSyncStatus('ok', '同期済み');
     showMsg('ok', `✓ 「${item.name}」の情報を更新しました。`);
     populateSelects();
-    populateBoxList();
+    populateInputChips();
     renderTable();
   } catch (e) {
     setSyncStatus('err', 'エラー');
@@ -1302,7 +1410,7 @@ function renderBoxManagerList() {
       div.innerHTML = `
         <div class="box-mgr-edit-row">
           <input type="text" id="box-rename-input" value="${esc(box)}" maxlength="20" autocomplete="off">
-          <button class="btn btn-primary btn-sm" onclick="saveBoxRename('${esc(box)}')">保存</button>
+          <button class="btn btn-primary btn-sm" onclick="saveBoxRename(decodeURIComponent('${encodeURIComponent(box)}'))">保存</button>
           <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="cancelBoxRename()">キャンセル</button>
         </div>
       `;
@@ -1316,7 +1424,7 @@ function renderBoxManagerList() {
           <span class="box-tag">${esc(box)}</span>
           <span class="box-mgr-count">${count}件</span>
         </div>
-        <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="startBoxRename('${esc(box)}')">名前を変更</button>
+        <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="startBoxRename(decodeURIComponent('${encodeURIComponent(box)}'))">名前を変更</button>
       `;
     }
     container.appendChild(div);
@@ -1355,12 +1463,107 @@ async function saveBoxRename(oldBox) {
     boxEditingName = null;
     setSyncStatus('ok', '同期済み');
     renderBoxManagerList();
-    populateBoxList();
+    populateInputChips();
     renderTable();
     showBoxManagerMsg('ok', `✓ 「${oldBox}」→「${newBox}」に変更しました（${targetItems.length}件）`);
   } catch (e) {
     setSyncStatus('err', 'エラー');
     showBoxManagerMsg('err', '更新に失敗しました: ' + e.message);
+  }
+}
+
+// ===== カテゴリ管理 =====
+let categoryEditingName = null;
+
+function openCategoryManager() {
+  categoryEditingName = null;
+  renderCategoryManagerList();
+  document.getElementById('category-manager-overlay').classList.add('visible');
+}
+
+function closeCategoryManager() {
+  document.getElementById('category-manager-overlay').classList.remove('visible');
+  categoryEditingName = null;
+}
+
+function renderCategoryManagerList() {
+  const categories = getCategoryList();
+  const container = document.getElementById('category-manager-list');
+
+  if (categories.length === 0) {
+    container.innerHTML = '<div class="box-mgr-empty">カテゴリが登録されていません。</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  categories.forEach(category => {
+    const count = items.filter(i => (i.category || '') === category).length;
+    const div = document.createElement('div');
+    div.className = 'box-mgr-row';
+
+    if (categoryEditingName === category) {
+      div.innerHTML = `
+        <div class="box-mgr-edit-row">
+          <input type="text" id="category-rename-input" value="${esc(category)}" maxlength="30" autocomplete="off">
+          <button class="btn btn-primary btn-sm" onclick="saveCategoryRename(decodeURIComponent('${encodeURIComponent(category)}'))">保存</button>
+          <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="cancelCategoryRename()">キャンセル</button>
+        </div>
+      `;
+      setTimeout(() => {
+        const el = document.getElementById('category-rename-input');
+        if (el) { el.focus(); el.select(); }
+      }, 0);
+    } else {
+      div.innerHTML = `
+        <div class="box-mgr-name">
+          <span class="category-tag">${esc(category)}</span>
+          <span class="box-mgr-count">${count}件</span>
+        </div>
+        <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="startCategoryRename(decodeURIComponent('${encodeURIComponent(category)}'))">名前を変更</button>
+      `;
+    }
+    container.appendChild(div);
+  });
+}
+
+function startCategoryRename(category) {
+  categoryEditingName = category;
+  renderCategoryManagerList();
+}
+
+function cancelCategoryRename() {
+  categoryEditingName = null;
+  renderCategoryManagerList();
+}
+
+function showCategoryManagerMsg(type, text) {
+  const el = document.getElementById('category-mgr-msg');
+  el.className = `msg ${type}`;
+  el.textContent = text;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
+}
+
+async function saveCategoryRename(oldCategory) {
+  const newCategory = document.getElementById('category-rename-input')?.value.trim() || '';
+  if (!newCategory) { showCategoryManagerMsg('err', 'カテゴリ名を入力してください。'); return; }
+  if (newCategory === oldCategory) { cancelCategoryRename(); return; }
+
+  const targetItems = items.filter(i => (i.category || '') === oldCategory);
+  setSyncStatus('loading', '更新中…');
+  try {
+    await db.updateByCategory(oldCategory, { category: newCategory });
+    targetItems.forEach(item => { item.category = newCategory; });
+
+    categoryEditingName = null;
+    setSyncStatus('ok', '同期済み');
+    renderCategoryManagerList();
+    populateInputChips();
+    renderTable();
+    showCategoryManagerMsg('ok', `✓ 「${oldCategory}」→「${newCategory}」に変更しました（${targetItems.length}件）`);
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showCategoryManagerMsg('err', '更新に失敗しました: ' + e.message);
   }
 }
 
@@ -1445,8 +1648,16 @@ function setLoading(btnId, loading) {
 
 // Enter キーで送信
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'box-rename-input') {
+    saveBoxRename(boxEditingName);
+    return;
+  }
+  if (e.key === 'Enter' && e.target.id === 'category-rename-input') {
+    saveCategoryRename(categoryEditingName);
+    return;
+  }
   if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
-    if (e.target.id === 'edit-name' || e.target.id === 'edit-box') {
+    if (e.target.id === 'edit-name' || e.target.id === 'edit-category' || e.target.id === 'edit-box') {
       if (editingId) saveEdit(editingId);
       return;
     }
@@ -1459,12 +1670,11 @@ document.addEventListener('keydown', e => {
       closeDeleteDialog();
     } else if (document.getElementById('box-manager-overlay').classList.contains('visible')) {
       if (boxEditingName) { cancelBoxRename(); } else { closeBoxManager(); }
+    } else if (document.getElementById('category-manager-overlay').classList.contains('visible')) {
+      if (categoryEditingName) { cancelCategoryRename(); } else { closeCategoryManager(); }
     } else if (editingId) {
       closeEdit();
     }
-  }
-  if (e.key === 'Enter' && e.target.id === 'box-rename-input') {
-    saveBoxRename(boxEditingName);
   }
 });
 
@@ -1474,6 +1684,9 @@ document.getElementById('delete-overlay').addEventListener('click', e => {
 });
 document.getElementById('box-manager-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeBoxManager();
+});
+document.getElementById('category-manager-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeCategoryManager();
 });
 
 // ===== 自動更新（60秒ごと）=====
@@ -1489,7 +1702,7 @@ async function autoRefresh() {
     if (JSON.stringify(latest) !== JSON.stringify(items)) {
       items = latest;
       populateSelects();
-      populateBoxList();
+      populateInputChips();
       renderTable();
       setSyncStatus('ok', '更新しました');
       setTimeout(() => setSyncStatus('ok', '同期済み'), 2000);

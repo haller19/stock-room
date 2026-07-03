@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v12'` → `'zaiko-v13'`). Also update the version label in `index.html` header (`<span>v12</span>`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v11'` → `'zaiko-v12'`). Also update the version label in `index.html` header (`<span>v11</span>`).
 
 ## Database Schema
 
@@ -44,7 +44,6 @@ Table: stock
   id         uuid         PK
   name       text         unique
   qty        integer      >= 0
-  category   text         attribute category
   box        text         storage location
   created_at timestamptz
 ```
@@ -59,15 +58,12 @@ const db = {
   update:      (id, patch)  => api('PATCH',  `stock?id=eq.${id}`, patch),
   delete:      (id)         => api('DELETE', `stock?id=eq.${id}`),
   updateByBox: (box, patch) => api('PATCH',  `stock?box=eq.${encodeURIComponent(box)}`, patch),
-  updateByCategory: (category, patch) => api('PATCH', `stock?category=eq.${encodeURIComponent(category)}`, patch),
 };
 ```
 
-**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName`, `categoryEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
+**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
 
-**Storage location management**: `box` field acts as the storage-location grouping key. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
-
-**Category management**: `category` is an optional per-item attribute such as 台所用品 or 日用品. Per-item edit updates only that item's category. The "カテゴリ管理" modal (`openCategoryManager`) handles bulk renames across all items via `db.updateByCategory`. The list sort selector supports name order and category order, with empty categories last.
+**Storage location management**: `box` field acts as a grouping category. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
 
 **Group view**: "グループ表示" button in the 在庫一覧 header toggles `groupView` mode. When active, `renderTable` dispatches to `renderGroupView(filtered)`, which groups items by `box`, renders collapsible section headers (click to toggle), and sorts boxes alphabetically with empty-box items last. `groupView` and `deleteMode` are mutually exclusive. `collapsedBoxes` is a `Set<string>` of currently collapsed box names; it clears when group view is turned off.
 
