@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v12'` → `'zaiko-v13'`). Also update the version label in `index.html` header (`<span>v12</span>`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v13'` → `'zaiko-v14'`). Also update the version label in `index.html` header (`<span>v13</span>`).
 
 ## Database Schema
 
@@ -63,7 +63,9 @@ const db = {
 };
 ```
 
-**State**: Global `items[]`, `currentTab`, `editingId`, `deleteMode`, `boxEditingName`, `categoryEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
+**State**: Global `items[]`, `memos[]`, `currentTab`, `currentPage`, `editingId`, `deleteMode`, `boxEditingName`, `categoryEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
+
+**Page navigation**: Bottom navigation switches `.page-view` sections with `navigatePage(page)`. Home shows `#home-memo-list` as a read-only memo alert feed plus the stock list. The memo page shows the full memo card. The in/out page shows the operation card. Search opens `#search-overlay`; applying it writes to `input#search`, returns to home, and calls `renderTable()`.
 
 **Storage location management**: `box` field acts as the storage-location grouping key. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
 

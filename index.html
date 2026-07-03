@@ -39,6 +39,7 @@
     color: var(--text);
     min-height: 100vh;
     font-size: 14px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
   }
 
   /* ===== HEADER ===== */
@@ -78,12 +79,49 @@
   .container {
     max-width: 1040px; margin: 0 auto;
     padding: 24px 20px;
+    display: block;
+  }
+  .page-view { display: none; }
+  .page-view.active {
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 20px; align-items: start;
+    gap: 20px;
+    align-items: start;
+  }
+  .page-view--home { grid-template-columns: 1fr; }
+  .page-view--memo {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .page-view--inout {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .home-alert-card .card-body { padding: 14px 18px; }
+  .home-memo-list { display: flex; flex-direction: column; gap: 7px; }
+  .home-memo-alert {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 9px 12px;
+    background: #fff;
+    border: 1px solid var(--accent-mid);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+  }
+  .home-memo-alert__body {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+  .home-memo-alert__time {
+    flex: 0 0 auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-top: 2px;
   }
   @media (max-width: 720px) {
-    .container { grid-template-columns: 1fr; }
+    .container { padding: 18px 12px; }
+    .page-view.active { gap: 14px; }
     .card-header { flex-wrap: wrap; }
     .card-header .btn-delete-mode { margin-left: 0 !important; }
   }
@@ -454,6 +492,67 @@
   .box-group-item-name { padding-left: 28px !important; }
   .box-group-item-row { cursor: default; }
 
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 180;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    padding: 9px max(18px, calc((100vw - 520px) / 2)) calc(8px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.96);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 26px rgba(10,173,160,.12);
+    backdrop-filter: blur(12px);
+  }
+  .bottom-nav__item {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 58px;
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .15s, background .15s, transform .08s;
+  }
+  .bottom-nav__item img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    opacity: .64;
+    transition: opacity .15s, transform .15s;
+  }
+  .bottom-nav__item:hover,
+  .bottom-nav__item.active {
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+  .bottom-nav__item.active img,
+  .bottom-nav__item:hover img {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+  .bottom-nav__item:active { transform: scale(.98); }
+
+  .search-dialog {
+    width: min(460px, 92vw);
+    text-align: left;
+  }
+  .search-dialog .dialog-actions { margin-top: 14px; }
+  .search-modal-input {
+    width: 100%;
+    margin-top: 6px;
+  }
+
   /* ===== DARK MODE ===== */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -507,6 +606,12 @@
     .edit-row td { background: var(--accent-light) !important; }
     .edit-row input[type="text"] { background: #0e1f1f; }
     .dialog { background: #152828; border-color: #1e3a3a; }
+    .home-memo-alert { background: #0e1f1f; border-color: var(--accent-mid); }
+    .bottom-nav {
+      background: rgba(21,40,40,.96);
+      border-top-color: var(--border);
+      box-shadow: 0 -8px 26px rgba(0,0,0,.32);
+    }
     .btn-delete { border-color: var(--danger); color: var(--danger); }
     .category-tag { background: #10203a; border-color: #244a7a; color: #8bb8ff; }
     .box-chip { background: var(--accent-light); color: var(--accent); border-color: var(--accent-mid); }
@@ -577,11 +682,27 @@
   </div>
 </div>
 
+<!-- ===== 検索ダイアログ ===== -->
+<div class="dialog-overlay" id="search-overlay">
+  <div class="dialog search-dialog">
+    <div class="box-mgr-header">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0">在庫を検索</h3>
+      <button onclick="closeSearchDialog()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">✕</button>
+    </div>
+    <label for="search-modal-input" style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.08em">品名で絞り込み</label>
+    <input type="text" id="search-modal-input" class="search-modal-input" placeholder="検索キーワード…" maxlength="40" autocomplete="off">
+    <div class="dialog-actions">
+      <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="clearSearchFromModal()">クリア</button>
+      <button class="btn btn-primary" onclick="applySearchFromModal()">検索</button>
+    </div>
+  </div>
+</div>
+
 <div id="app-root" style="display:none">
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v12</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v13</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -592,145 +713,182 @@
   </div>
 </header>
 
-<div class="container">
+<div class="container app-pages">
+
+  <!-- ===== HOME ===== -->
+  <section class="page-view page-view--home active" id="page-home" data-page="home">
+    <div class="card home-alert-card">
+      <div class="card-header">
+        <h2>メモ</h2>
+        <span class="badge">アラート</span>
+      </div>
+      <div class="card-body">
+        <div class="home-memo-list" id="home-memo-list">
+          <div class="memo-empty">メモはありません</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 在庫一覧 ===== -->
+    <div class="card">
+      <div class="card-header">
+        <h2>在庫一覧</h2>
+        <span class="badge" id="item-count">…</span>
+        <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
+        <button class="btn-delete-mode" onclick="openCategoryManager()" style="margin-left:0">カテゴリ管理</button>
+        <button class="btn-delete-mode" id="btn-group-view" onclick="toggleGroupView()" style="margin-left:0">グループ表示</button>
+        <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
+      </div>
+      <div class="card-body" style="padding-bottom:0">
+        <div class="search-row">
+          <input type="text" id="search" placeholder="品名で絞り込み…" oninput="renderTable()">
+          <select id="sort-mode" onchange="renderTable()">
+            <option value="name">品名順</option>
+            <option value="category">カテゴリ順</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead id="stock-thead">
+            <tr>
+              <th>品名</th>
+              <th>カテゴリ</th>
+              <th style="text-align:right">在庫数</th>
+              <th>保管場所</th>
+            </tr>
+          </thead>
+          <tbody id="stock-tbody">
+            <!-- skeleton -->
+            <tr><td colspan="4"><div class="skeleton" style="width:60%"></div></td></tr>
+            <tr><td colspan="4"><div class="skeleton" style="width:75%"></div></td></tr>
+            <tr><td colspan="4"><div class="skeleton" style="width:50%"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="edit-hint" id="edit-hint" style="display:none">行をクリックして編集</div>
+      <div class="empty" id="empty-msg" style="display:none">登録された品目がありません</div>
+    </div>
+  </section>
 
   <!-- ===== MEMO ===== -->
-  <div class="card" style="grid-column: 1 / -1">
-    <div class="card-header"><h2>メモ</h2></div>
-    <div class="card-body">
-      <div class="msg" id="memo-msg"></div>
-      <div class="memo-input-row">
-        <input type="text" id="memo-input" placeholder="メモを入力…" maxlength="200" autocomplete="off">
-        <button class="btn btn-primary" onclick="addMemo()">追加</button>
-      </div>
-      <div class="memo-list" id="memo-list">
-        <div class="memo-empty">メモはありません</div>
+  <section class="page-view page-view--memo" id="page-memo" data-page="memo">
+    <div class="card">
+      <div class="card-header"><h2>メモ</h2></div>
+      <div class="card-body">
+        <div class="msg" id="memo-msg"></div>
+        <div class="memo-input-row">
+          <input type="text" id="memo-input" placeholder="メモを入力…" maxlength="200" autocomplete="off">
+          <button class="btn btn-primary" onclick="addMemo()">追加</button>
+        </div>
+        <div class="memo-list" id="memo-list">
+          <div class="memo-empty">メモはありません</div>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ===== LEFT: 操作パネル ===== -->
-  <div class="card">
-    <div class="card-header"><h2>操作</h2></div>
-    <div class="card-body">
+  <!-- ===== 入出庫 ===== -->
+  <section class="page-view page-view--inout" id="page-inout" data-page="inout">
+    <div class="card">
+      <div class="card-header"><h2>操作</h2></div>
+      <div class="card-body">
 
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('in')"  id="tab-in">入庫 ＋</button>
-        <button class="tab-btn"        onclick="switchTab('out')" id="tab-out">出庫 −</button>
-      </div>
-
-      <div class="msg" id="msg"></div>
-
-      <!-- 入庫フォーム -->
-      <div id="form-in">
-        <div class="form-group">
-          <label>品目</label>
-          <select id="in-item" onchange="onInItemChange()">
-            <option value="">— 品目を選ぶ —</option>
-          </select>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('in')"  id="tab-in">入庫 ＋</button>
+          <button class="tab-btn"        onclick="switchTab('out')" id="tab-out">出庫 −</button>
         </div>
 
-        <div class="or-new">
-          品目がない場合 → <button class="link-btn" onclick="toggleNewItem()">新規登録</button>
-        </div>
+        <div class="msg" id="msg"></div>
 
-        <div class="new-item-row" id="new-item-row">
+        <!-- 入庫フォーム -->
+        <div id="form-in">
           <div class="form-group">
-            <label>新しい品名</label>
-            <input type="text" id="new-name" placeholder="例：シャンプー" maxlength="40">
+            <label>品目</label>
+            <select id="in-item" onchange="onInItemChange()">
+              <option value="">— 品目を選ぶ —</option>
+            </select>
           </div>
-          <div class="new-item-actions">
-            <button class="btn btn-primary btn-sm" onclick="addNewItem()">登録して選択</button>
-            <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);" onclick="cancelNewItem()">キャンセル</button>
+
+          <div class="or-new">
+            品目がない場合 → <button class="link-btn" onclick="toggleNewItem()">新規登録</button>
           </div>
+
+          <div class="new-item-row" id="new-item-row">
+            <div class="form-group">
+              <label>新しい品名</label>
+              <input type="text" id="new-name" placeholder="例：シャンプー" maxlength="40">
+            </div>
+            <div class="new-item-actions">
+              <button class="btn btn-primary btn-sm" onclick="addNewItem()">登録して選択</button>
+              <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);" onclick="cancelNewItem()">キャンセル</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>追加数量</label>
+            <input type="number" id="in-qty" value="1" min="1" max="999">
+          </div>
+          <div class="form-group">
+            <label>保管場所（箱番号）</label>
+            <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off">
+            <div class="box-chips" id="in-box-chips"></div>
+          </div>
+          <div class="form-group">
+            <label>カテゴリ</label>
+            <input type="text" id="in-category" placeholder="例：台所用品" maxlength="30" autocomplete="off">
+            <div class="category-chips" id="in-category-chips"></div>
+          </div>
+
+          <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
         </div>
 
-        <div class="form-group">
-          <label>追加数量</label>
-          <input type="number" id="in-qty" value="1" min="1" max="999">
-        </div>
-        <div class="form-group">
-          <label>保管場所（箱番号）</label>
-          <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off">
-          <div class="box-chips" id="in-box-chips"></div>
-        </div>
-        <div class="form-group">
-          <label>カテゴリ</label>
-          <input type="text" id="in-category" placeholder="例：台所用品" maxlength="30" autocomplete="off">
-          <div class="category-chips" id="in-category-chips"></div>
-        </div>
+        <!-- 出庫フォーム -->
+        <div id="form-out" style="display:none">
+          <div class="form-group">
+            <label>品目</label>
+            <select id="out-item" onchange="onOutItemChange()">
+              <option value="">— 品目を選ぶ —</option>
+            </select>
+          </div>
 
-        <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
-      </div>
+          <div class="form-group" id="out-current-wrap" style="display:none">
+            <label>現在庫数</label>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:500;padding:4px 0" id="out-current-display">—</div>
+          </div>
 
-      <!-- 出庫フォーム -->
-      <div id="form-out" style="display:none">
-        <div class="form-group">
-          <label>品目</label>
-          <select id="out-item" onchange="onOutItemChange()">
-            <option value="">— 品目を選ぶ —</option>
-          </select>
+          <div class="form-group">
+            <label>出庫数量</label>
+            <input type="number" id="out-qty" value="1" min="1" max="999">
+          </div>
+
+          <button class="btn btn-danger" id="btn-out" onclick="doOut()">出庫する</button>
         </div>
 
-        <div class="form-group" id="out-current-wrap" style="display:none">
-          <label>現在庫数</label>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:500;padding:4px 0" id="out-current-display">—</div>
-        </div>
-
-        <div class="form-group">
-          <label>出庫数量</label>
-          <input type="number" id="out-qty" value="1" min="1" max="999">
-        </div>
-
-        <button class="btn btn-danger" id="btn-out" onclick="doOut()">出庫する</button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ===== RIGHT: 在庫一覧 ===== -->
-  <div class="card">
-    <div class="card-header">
-      <h2>在庫一覧</h2>
-      <span class="badge" id="item-count">…</span>
-      <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
-      <button class="btn-delete-mode" onclick="openCategoryManager()" style="margin-left:0">カテゴリ管理</button>
-      <button class="btn-delete-mode" id="btn-group-view" onclick="toggleGroupView()" style="margin-left:0">グループ表示</button>
-      <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
-    </div>
-    <div class="card-body" style="padding-bottom:0">
-      <div class="search-row">
-        <input type="text" id="search" placeholder="品名で絞り込み…" oninput="renderTable()">
-        <select id="sort-mode" onchange="renderTable()">
-          <option value="name">品名順</option>
-          <option value="category">カテゴリ順</option>
-        </select>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead id="stock-thead">
-          <tr>
-            <th>品名</th>
-            <th>カテゴリ</th>
-            <th style="text-align:right">在庫数</th>
-            <th>保管場所</th>
-          </tr>
-        </thead>
-        <tbody id="stock-tbody">
-          <!-- skeleton -->
-          <tr><td colspan="4"><div class="skeleton" style="width:60%"></div></td></tr>
-          <tr><td colspan="4"><div class="skeleton" style="width:75%"></div></td></tr>
-          <tr><td colspan="4"><div class="skeleton" style="width:50%"></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="edit-hint" id="edit-hint" style="display:none">行をクリックして編集</div>
-    <div class="empty" id="empty-msg" style="display:none">登録された品目がありません</div>
-  </div>
-
+  </section>
 
 </div>
+
+<nav class="bottom-nav" aria-label="ページナビゲーション">
+  <button class="bottom-nav__item active" type="button" data-page="home" onclick="navigatePage('home')" aria-current="page">
+    <img src="images/home.svg" alt="">
+    <span>ホーム</span>
+  </button>
+  <button class="bottom-nav__item" type="button" data-page="memo" onclick="navigatePage('memo')">
+    <img src="images/memo.svg" alt="">
+    <span>メモ</span>
+  </button>
+  <button class="bottom-nav__item" type="button" data-page="inout" onclick="navigatePage('inout')">
+    <img src="images/inout.svg" alt="">
+    <span>入庫・出庫</span>
+  </button>
+  <button class="bottom-nav__item" type="button" data-page="search" onclick="openSearchDialog()">
+    <img src="images/search.svg" alt="">
+    <span>検索</span>
+  </button>
+</nav>
 </div><!-- /#app-root -->
 
 <script>
@@ -783,6 +941,7 @@ const memoDb = {
 let items = [];
 let memos = [];
 let currentTab = 'in';
+let currentPage = 'home';
 
 // ===== INIT =====
 async function initApp() {
@@ -841,6 +1000,32 @@ function setSyncStatus(state, label) {
   const lbl = document.getElementById('sync-label');
   dot.className = 'sync-dot ' + state;
   lbl.textContent = label;
+}
+
+// ===== PAGE NAVIGATION =====
+function navigatePage(page) {
+  if (page === 'search') {
+    openSearchDialog();
+    return;
+  }
+  currentPage = page;
+  document.querySelectorAll('.page-view').forEach(view => {
+    view.classList.toggle('active', view.dataset.page === page);
+  });
+  document.querySelectorAll('.bottom-nav__item').forEach(btn => {
+    const active = btn.dataset.page === page;
+    btn.classList.toggle('active', active);
+    if (active) {
+      btn.setAttribute('aria-current', 'page');
+    } else {
+      btn.removeAttribute('aria-current');
+    }
+  });
+  if (page === 'home') {
+    renderHomeMemos();
+    renderTable();
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ===== TAB =====
@@ -1572,6 +1757,7 @@ function renderMemos() {
   const list = document.getElementById('memo-list');
   if (memos.length === 0) {
     list.innerHTML = '<div class="memo-empty">メモはありません</div>';
+    renderHomeMemos();
     return;
   }
   list.innerHTML = memos.map(m => `
@@ -1579,6 +1765,22 @@ function renderMemos() {
       <span class="memo-body">${esc(m.body)}</span>
       <span class="memo-time">${fmtMemoTime(m.created_at)}</span>
       <button class="memo-del" onclick="deleteMemo('${m.id}')" title="削除">×</button>
+    </div>
+  `).join('');
+  renderHomeMemos();
+}
+
+function renderHomeMemos() {
+  const list = document.getElementById('home-memo-list');
+  if (!list) return;
+  if (memos.length === 0) {
+    list.innerHTML = '<div class="memo-empty">メモはありません</div>';
+    return;
+  }
+  list.innerHTML = memos.map(m => `
+    <div class="home-memo-alert">
+      <span class="home-memo-alert__body">${esc(m.body)}</span>
+      <span class="home-memo-alert__time">${fmtMemoTime(m.created_at)}</span>
     </div>
   `).join('');
 }
@@ -1646,8 +1848,56 @@ function setLoading(btnId, loading) {
   if (btnId === 'btn-out') btn.textContent = loading ? '処理中…' : '出庫する';
 }
 
+// ===== SEARCH MODAL =====
+function openSearchDialog() {
+  const input = document.getElementById('search-modal-input');
+  const currentSearch = document.getElementById('search')?.value || '';
+  input.value = currentSearch;
+  document.getElementById('search-overlay').classList.add('visible');
+  document.querySelectorAll('.bottom-nav__item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.page === 'search');
+    btn.removeAttribute('aria-current');
+  });
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+}
+
+function closeSearchDialog() {
+  document.getElementById('search-overlay').classList.remove('visible');
+  document.querySelectorAll('.bottom-nav__item').forEach(btn => {
+    const active = btn.dataset.page === currentPage;
+    btn.classList.toggle('active', active);
+    if (active) {
+      btn.setAttribute('aria-current', 'page');
+    } else {
+      btn.removeAttribute('aria-current');
+    }
+  });
+}
+
+function applySearchFromModal() {
+  const modalInput = document.getElementById('search-modal-input');
+  const searchInput = document.getElementById('search');
+  searchInput.value = modalInput.value.trim();
+  closeSearchDialog();
+  navigatePage('home');
+  renderTable();
+}
+
+function clearSearchFromModal() {
+  document.getElementById('search-modal-input').value = '';
+  const searchInput = document.getElementById('search');
+  searchInput.value = '';
+  closeSearchDialog();
+  navigatePage('home');
+  renderTable();
+}
+
 // Enter キーで送信
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'search-modal-input') {
+    applySearchFromModal();
+    return;
+  }
   if (e.key === 'Enter' && e.target.id === 'box-rename-input') {
     saveBoxRename(boxEditingName);
     return;
@@ -1666,7 +1916,9 @@ document.addEventListener('keydown', e => {
     if (currentTab === 'out') doOut();
   }
   if (e.key === 'Escape') {
-    if (document.getElementById('delete-overlay').classList.contains('visible')) {
+    if (document.getElementById('search-overlay').classList.contains('visible')) {
+      closeSearchDialog();
+    } else if (document.getElementById('delete-overlay').classList.contains('visible')) {
       closeDeleteDialog();
     } else if (document.getElementById('box-manager-overlay').classList.contains('visible')) {
       if (boxEditingName) { cancelBoxRename(); } else { closeBoxManager(); }
@@ -1681,6 +1933,9 @@ document.addEventListener('keydown', e => {
 // オーバーレイ外クリックでダイアログを閉じる
 document.getElementById('delete-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeDeleteDialog();
+});
+document.getElementById('search-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSearchDialog();
 });
 document.getElementById('box-manager-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeBoxManager();

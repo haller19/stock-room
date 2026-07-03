@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v12';
+const CACHE_VERSION = 'zaiko-v13';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
@@ -10,6 +10,10 @@ const PRECACHE_ASSETS = [
   '/stock-room/favicon.ico',
   '/stock-room/icons/icon-180.png',
   '/stock-room/icons/icon-512.png',
+  '/stock-room/images/home.svg',
+  '/stock-room/images/memo.svg',
+  '/stock-room/images/inout.svg',
+  '/stock-room/images/search.svg',
 ];
 
 // ===== インストール: 静的ファイルをキャッシュ（個別に試みて失敗しても続行）=====

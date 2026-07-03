@@ -37,9 +37,10 @@ stock-room/
 ├── index.html               # アプリ本体（認証済みユーザーのみ表示）
 ├── config.js                # Supabase設定・許可アカウント定義
 ├── manifest.json            # PWAマニフェスト
-├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v12）
+├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v13）
 ├── favicon.ico              # ファビコン
 ├── zaiko_header_logo.svg    # ヘッダーロゴ
+├── images/                  # 下部ナビ用SVGアイコン
 ├── login/
 │   └── index.html           # ログイン画面（/stock-room/login/）
 └── icons/
@@ -51,6 +52,13 @@ stock-room/
 ---
 
 ## 機能一覧
+
+### ページ内ナビ
+- 画面下部のナビゲーションで「ホーム」「メモ」「入庫・出庫」「検索」を切り替え
+- ホームはメモをアラート表示し、その下に在庫一覧を表示
+- メモページはメモカード全体を表示し、メモ追加・削除を行う
+- 入庫・出庫ページは操作パネルを表示
+- 検索はモーダルで開き、検索語を在庫一覧の絞り込みに反映する
 
 ### 在庫操作
 - **入庫** — 品目を選択（または新規登録）して数量・カテゴリ・保管場所を入力
@@ -151,7 +159,7 @@ create policy "allow_authenticated"
 `service-worker.js` の3行目のバージョン番号を上げてアップロードしてください。
 
 ```javascript
-const CACHE_VERSION = 'zaiko-v12'; // → 'zaiko-v13' に変更
+const CACHE_VERSION = 'zaiko-v13'; // → 'zaiko-v14' に変更
 ```
 
 ---

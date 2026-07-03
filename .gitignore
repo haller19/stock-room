@@ -9,3 +9,5 @@ _*.*
 /icons/_notes
 .vscode/
 .gitignore
+/doc/prompt
+/doc/design
