@@ -101,9 +101,8 @@
   .home-memo-alert {
     display: flex; align-items: flex-start; gap: 8px;
     padding: 9px 12px;
-    background: #fff;
-    border: 1px solid var(--accent-mid);
-    border-left: 4px solid var(--accent);
+    background:var(--accent-mid);
+    border: 1px solid var(--accent);
     border-radius: 8px;
   }
   .home-memo-alert__body {
@@ -717,11 +716,7 @@
 
   <!-- ===== HOME ===== -->
   <section class="page-view page-view--home active" id="page-home" data-page="home">
-    <div class="card home-alert-card">
-      <div class="card-header">
-        <h2>メモ</h2>
-        <span class="badge">アラート</span>
-      </div>
+    <div class="home-alert-card">
       <div class="card-body">
         <div class="home-memo-list" id="home-memo-list">
           <div class="memo-empty">メモはありません</div>
@@ -737,7 +732,7 @@
         <button class="btn-delete-mode" onclick="openBoxManager()" style="margin-left:auto">場所管理</button>
         <button class="btn-delete-mode" onclick="openCategoryManager()" style="margin-left:0">カテゴリ管理</button>
         <button class="btn-delete-mode" id="btn-group-view" onclick="toggleGroupView()" style="margin-left:0">グループ表示</button>
-        <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除する</button>
+        <button class="btn-delete-mode" id="btn-delete-mode" onclick="toggleDeleteMode()" style="margin-left:0">削除</button>
       </div>
       <div class="card-body" style="padding-bottom:0">
         <div class="search-row">
