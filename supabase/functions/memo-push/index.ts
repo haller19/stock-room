@@ -74,6 +74,8 @@ Deno.serve(async (req) => {
       .select('id, endpoint, subscription');
 
     if (error) throw error;
+    const subscriptionCount = subscriptions?.length || 0;
+    console.log('memo-push subscriptions:', subscriptionCount);
 
     const notificationPayload = JSON.stringify({
       title: 'Zaiko メモ',
@@ -106,7 +108,7 @@ Deno.serve(async (req) => {
     }));
 
     return Response.json(
-      { ok: true, sent, failed, removed },
+      { ok: true, subscription_count: subscriptionCount, sent, failed, removed },
       { headers: corsHeaders },
     );
   } catch (e) {

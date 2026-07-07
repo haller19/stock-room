@@ -538,7 +538,6 @@
   .bottom-nav__item:hover,
   .bottom-nav__item.active {
     color: var(--accent);
-    background: var(--accent-light);
   }
   .bottom-nav__item.active img,
   .bottom-nav__item:hover img {
@@ -706,7 +705,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v15</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v16</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -947,6 +946,10 @@ const pushDb = {
     row,
     { 'Prefer': 'resolution=merge-duplicates,return=representation' }
   ),
+  deleteByEndpoint: (endpoint) => api(
+    'DELETE',
+    `push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`
+  ),
 };
 
 // ===== STATE =====
@@ -1097,15 +1100,18 @@ async function enablePushNotifications() {
   try {
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey)
-      });
+    if (subscription) {
+      const oldEndpoint = subscription.endpoint;
+      await subscription.unsubscribe();
+      await pushDb.deleteByEndpoint(oldEndpoint).catch(e => console.warn('Old push subscription cleanup failed:', e));
     }
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
     await savePushSubscription(subscription);
     updatePushButtons();
-    showMemoMsg('ok', '通知を有効にしました。');
+    showMemoMsg('ok', '通知を再設定しました。');
   } catch (e) {
     console.warn('Push subscription failed:', e);
     showMemoMsg('err', '通知の有効化に失敗しました: ' + e.message);
@@ -1128,7 +1134,7 @@ async function initPushState() {
 }
 
 async function sendMemoPush(memo) {
-  if (!getPushPublicKey() || !currentSession?.access_token) return;
+  if (!getPushPublicKey() || !currentSession?.access_token) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/memo-push`, {
     method: 'POST',
     headers: {
@@ -1149,6 +1155,7 @@ async function sendMemoPush(memo) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || err.message || `HTTP ${res.status}`);
   }
+  return res.json().catch(() => ({ ok: true }));
 }
 
 // ===== PAGE NAVIGATION =====
@@ -1960,7 +1967,21 @@ async function addMemo() {
     memos.unshift(m);
     input.value = '';
     renderMemos();
-    sendMemoPush(m).catch(e => console.warn('Memo push notification failed:', e));
+    sendMemoPush(m)
+      .then(result => {
+        if (!result) return;
+        if (result.sent > 0) {
+          showMemoMsg('ok', `メモを追加し、通知を${result.sent}件送信しました。`);
+        } else if (result.failed > 0) {
+          showMemoMsg('err', `メモは追加済みですが、通知送信に失敗しました（失敗${result.failed}件）。`);
+        } else {
+          showMemoMsg('err', 'メモは追加済みですが、通知先が登録されていません。各端末で通知ONを押してください。');
+        }
+      })
+      .catch(e => {
+        console.warn('Memo push notification failed:', e);
+        showMemoMsg('err', 'メモは追加済みですが、通知送信に失敗しました: ' + e.message);
+      });
   } catch (e) {
     showMemoMsg('err', 'メモの追加に失敗しました: ' + e.message);
   }
