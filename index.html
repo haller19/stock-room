@@ -370,6 +370,11 @@
   }
   .btn-delete-mode:hover { border-color: var(--danger); color: var(--danger); }
   .btn-delete-mode.active { border-color: var(--danger); color: var(--danger); background: rgba(224,92,92,.07); }
+  .push-enable-btn.enabled {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
 
   /* 行内削除ボタン */
   .td-del-btn {
@@ -701,7 +706,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v13</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v14</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -769,7 +774,10 @@
   <!-- ===== MEMO ===== -->
   <section class="page-view page-view--memo" id="page-memo" data-page="memo">
     <div class="card">
-      <div class="card-header"><h2>メモ</h2></div>
+      <div class="card-header">
+        <h2>メモ</h2>
+        <button class="btn-delete-mode push-enable-btn" onclick="enablePushNotifications()" style="margin-left:auto">通知ON</button>
+      </div>
       <div class="card-body">
         <div class="msg" id="memo-msg"></div>
         <div class="memo-input-row">
@@ -902,11 +910,11 @@ function showApp() {
 }
 
 // ===== API =====
-async function api(method, path, body) {
+async function api(method, path, body, extraHeaders = {}) {
   const token = currentSession?.access_token || SUPABASE_KEY;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
-    headers: getHeaders(token),
+    headers: { ...getHeaders(token), ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined
   });
   if (!res.ok) {
@@ -930,6 +938,15 @@ const memoDb = {
   list:   ()     => api('GET',    'memo?select=*&order=created_at.desc'),
   insert: (body) => api('POST',   'memo', { body }),
   delete: (id)   => api('DELETE', `memo?id=eq.${id}`),
+};
+
+const pushDb = {
+  upsert: (row) => api(
+    'POST',
+    'push_subscriptions?on_conflict=endpoint',
+    row,
+    { 'Prefer': 'resolution=merge-duplicates,return=representation' }
+  ),
 };
 
 // ===== STATE =====
@@ -978,6 +995,7 @@ async function initApp() {
   currentSession = session;
   showApp();
   await initApp();
+  initPushState();
 
   // トークン自動更新
   sbClient.auth.onAuthStateChange((event, session) => {
@@ -995,6 +1013,142 @@ function setSyncStatus(state, label) {
   const lbl = document.getElementById('sync-label');
   dot.className = 'sync-dot ' + state;
   lbl.textContent = label;
+}
+
+// ===== WEB PUSH =====
+function getPushPublicKey() {
+  return (typeof PUSH_VAPID_PUBLIC_KEY !== 'undefined' && PUSH_VAPID_PUBLIC_KEY)
+    ? PUSH_VAPID_PUBLIC_KEY
+    : '';
+}
+
+function isPushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function updatePushButtons() {
+  const buttons = document.querySelectorAll('.push-enable-btn');
+  if (buttons.length === 0) return;
+
+  let text = '通知ON';
+  let enabled = false;
+  let disabled = false;
+
+  if (!isPushSupported()) {
+    text = '通知非対応';
+    disabled = true;
+  } else if (!getPushPublicKey()) {
+    text = '通知未設定';
+    disabled = true;
+  } else if (Notification.permission === 'granted') {
+    text = '通知ON済み';
+    enabled = true;
+  } else if (Notification.permission === 'denied') {
+    text = '通知ブロック中';
+    disabled = true;
+  }
+
+  buttons.forEach(btn => {
+    btn.textContent = text;
+    btn.disabled = disabled;
+    btn.classList.toggle('enabled', enabled);
+  });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+async function savePushSubscription(subscription) {
+  const payload = subscription.toJSON();
+  await pushDb.upsert({
+    endpoint: subscription.endpoint,
+    subscription: payload,
+    user_email: currentSession?.user?.email || '',
+    user_agent: navigator.userAgent,
+    updated_at: new Date().toISOString()
+  });
+}
+
+async function enablePushNotifications() {
+  if (!isPushSupported()) {
+    showMemoMsg('err', 'この環境はWeb Push通知に対応していません。');
+    updatePushButtons();
+    return;
+  }
+
+  const publicKey = getPushPublicKey();
+  if (!publicKey) {
+    showMemoMsg('err', 'PUSH_VAPID_PUBLIC_KEY が config.js に設定されていません。');
+    updatePushButtons();
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    showMemoMsg('err', '通知が許可されませんでした。');
+    updatePushButtons();
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+    }
+    await savePushSubscription(subscription);
+    updatePushButtons();
+    showMemoMsg('ok', '通知を有効にしました。');
+  } catch (e) {
+    console.warn('Push subscription failed:', e);
+    showMemoMsg('err', '通知の有効化に失敗しました: ' + e.message);
+    updatePushButtons();
+  }
+}
+
+async function initPushState() {
+  updatePushButtons();
+  if (!isPushSupported() || !getPushPublicKey() || Notification.permission !== 'granted') return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) await savePushSubscription(subscription);
+  } catch (e) {
+    console.warn('Push state initialization failed:', e);
+  } finally {
+    updatePushButtons();
+  }
+}
+
+async function sendMemoPush(memo) {
+  if (!getPushPublicKey() || !currentSession?.access_token) return;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/memo-push`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + currentSession.access_token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      memo: {
+        id: memo.id,
+        body: memo.body,
+        created_at: memo.created_at
+      },
+      sender_email: currentSession.user?.email || ''
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || `HTTP ${res.status}`);
+  }
 }
 
 // ===== PAGE NAVIGATION =====
@@ -1806,6 +1960,7 @@ async function addMemo() {
     memos.unshift(m);
     input.value = '';
     renderMemos();
+    sendMemoPush(m).catch(e => console.warn('Memo push notification failed:', e));
   } catch (e) {
     showMemoMsg('err', 'メモの追加に失敗しました: ' + e.message);
   }

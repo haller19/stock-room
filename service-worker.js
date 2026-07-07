@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v13';
+const CACHE_VERSION = 'zaiko-v14';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
@@ -9,6 +9,7 @@ const PRECACHE_ASSETS = [
   '/stock-room/zaiko_header_logo.svg',
   '/stock-room/favicon.ico',
   '/stock-room/icons/icon-180.png',
+  '/stock-room/icons/icon-192.png',
   '/stock-room/icons/icon-512.png',
   '/stock-room/images/home.svg',
   '/stock-room/images/memo.svg',
@@ -73,6 +74,46 @@ self.addEventListener('fetch', event => {
         }
         return response;
       }).catch(() => cached);
+    })
+  );
+});
+
+// ===== PUSH: メモ追加通知 =====
+self.addEventListener('push', event => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { body: event.data?.text() || '' };
+  }
+
+  const title = data.title || 'Zaiko メモ';
+  const options = {
+    body: data.body || '新しいメモが追加されました。',
+    icon: '/stock-room/icons/icon-192.png',
+    badge: '/stock-room/icons/icon-180.png',
+    tag: data.tag || 'zaiko-memo',
+    data: {
+      url: data.url || '/stock-room/',
+      memo_id: data.memo_id || null
+    }
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/stock-room/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        const clientUrl = new URL(client.url);
+        if (clientUrl.pathname.startsWith('/stock-room/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });

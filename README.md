@@ -37,7 +37,7 @@ stock-room/
 ├── index.html               # アプリ本体（認証済みユーザーのみ表示）
 ├── config.js                # Supabase設定・許可アカウント定義
 ├── manifest.json            # PWAマニフェスト
-├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v13）
+├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v14）
 ├── favicon.ico              # ファビコン
 ├── zaiko_header_logo.svg    # ヘッダーロゴ
 ├── images/                  # 下部ナビ用SVGアイコン
@@ -59,6 +59,11 @@ stock-room/
 - メモページはメモカード全体を表示し、メモ追加・削除を行う
 - 入庫・出庫ページは操作パネルを表示
 - 検索はモーダルで開き、検索語を在庫一覧の絞り込みに反映する
+
+### Web Push通知
+- メモページの「通知ON」ボタンから端末ごとに通知を許可
+- メモ追加後、Supabase Edge Function（`memo-push`）を呼び出して購読端末へ通知
+- PWAとしてホーム画面に追加したiOS/iPadOS 16.4以降、Android Chrome、デスクトップChrome/Edge等で利用可能
 
 ### 在庫操作
 - **入庫** — 品目を選択（または新規登録）して数量・カテゴリ・保管場所を入力
@@ -108,6 +113,7 @@ stock-room/
 ```javascript
 const SUPABASE_URL = 'https://xxxx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_...';
+const PUSH_VAPID_PUBLIC_KEY = '...';
 
 const ALLOWED_EMAILS = [
   'user1@gmail.com',
@@ -132,6 +138,18 @@ const ALLOWED_EMAILS = [
 | category | text | 属性カテゴリ |
 | box | text | 保管場所（箱番号） |
 | created_at | timestamptz | 作成日時 |
+
+### テーブル: push_subscriptions
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| id | uuid | 主キー（自動生成） |
+| endpoint | text | PushSubscription endpoint（ユニーク） |
+| subscription | jsonb | PushSubscription 全体 |
+| user_email | text | 購読したユーザーのメール |
+| user_agent | text | 購読端末のUser-Agent |
+| created_at | timestamptz | 作成日時 |
+| updated_at | timestamptz | 更新日時 |
 
 ### RLSポリシー
 
@@ -159,8 +177,44 @@ create policy "allow_authenticated"
 `service-worker.js` の3行目のバージョン番号を上げてアップロードしてください。
 
 ```javascript
-const CACHE_VERSION = 'zaiko-v13'; // → 'zaiko-v14' に変更
+const CACHE_VERSION = 'zaiko-v14'; // → 'zaiko-v15' に変更
 ```
+
+---
+
+## Web Push 設定
+
+### 1. VAPID鍵を生成
+
+```bash
+node tools/generate-vapid-keys.js
+```
+
+### 2. `config.js` に公開鍵を追加
+
+```javascript
+const PUSH_VAPID_PUBLIC_KEY = '生成した PUSH_VAPID_PUBLIC_KEY';
+```
+
+### 3. Supabase Secrets を設定
+
+```bash
+supabase secrets set VAPID_PUBLIC_KEY="生成した VAPID_PUBLIC_KEY"
+supabase secrets set VAPID_PRIVATE_KEY="生成した VAPID_PRIVATE_KEY"
+supabase secrets set VAPID_SUBJECT="mailto:your-email@example.com"
+```
+
+`SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` はSupabase Edge Functionsの標準環境変数を使います。
+
+### 4. Edge Function をデプロイ
+
+```bash
+supabase functions deploy memo-push
+```
+
+### 5. DBスキーマを反映
+
+`supabase_rls.sql` の `push_subscriptions` セクションを Supabase SQL Editor で実行してください。
 
 ---
 
