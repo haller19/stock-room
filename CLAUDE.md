@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v14'` → `'zaiko-v15'`). Also update the version label in `index.html` header (`<span>v14</span>`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v15'` → `'zaiko-v16'`). Also update the version label in `index.html` header (`<span>v15</span>`).
 
 ## Database Schema
 

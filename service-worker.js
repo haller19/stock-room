@@ -1,11 +1,10 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v14';
+const CACHE_VERSION = 'zaiko-v15';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
   '/stock-room/index.html',
-  '/stock-room/config.js',
   '/stock-room/zaiko_header_logo.svg',
   '/stock-room/favicon.ico',
   '/stock-room/icons/icon-180.png',
@@ -44,6 +43,20 @@ self.addEventListener('activate', event => {
 // ===== フェッチ: キャッシュ優先（静的ファイル）/ ネットワーク優先（API）=====
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // Keep runtime config fresh across installed PWAs while preserving an offline fallback.
+  if (url.pathname === '/stock-room/config.js') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // Supabase: GETのみネットワーク優先→失敗時キャッシュフォールバック、書き込みはスルー
   if (url.hostname.includes('supabase.co')) {
