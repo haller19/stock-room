@@ -35,7 +35,7 @@ Required GitHub Secrets: `XSERVER_HOST`, `XSERVER_USER`, `XSERVER_KEY_B64`, `XSE
 
 ## Cache Busting
 
-When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v16'` → `'zaiko-v17'`). Also update the version label in `index.html` header (`<span>v16</span>`).
+When deploying changes, increment `CACHE_VERSION` in `service-worker.js` line 3 (e.g., `'zaiko-v17'` → `'zaiko-v18'`). Also update the version label in `index.html` header (`<span>v17</span>`).
 
 ## Database Schema
 
@@ -46,6 +46,15 @@ Table: stock
   qty        integer      >= 0
   category   text         attribute category
   box        text         storage location
+  created_at timestamptz
+
+Table: stock_reservations
+  id         uuid         PK
+  kind       text         'in' for 入庫予定, 'out' for 出庫希望
+  item_id    uuid         target stock item id
+  item_name  text         item name snapshot
+  qty        integer      > 0
+  user_email text         creator email
   created_at timestamptz
 ```
 
@@ -61,13 +70,21 @@ const db = {
   updateByBox: (box, patch) => api('PATCH',  `stock?box=eq.${encodeURIComponent(box)}`, patch),
   updateByCategory: (category, patch) => api('PATCH', `stock?category=eq.${encodeURIComponent(category)}`, patch),
 };
+
+const reservationDb = {
+  list:   ()    => api('GET',    'stock_reservations?select=*&order=created_at.desc'),
+  insert: (row) => api('POST',   'stock_reservations', row),
+  delete: (id)  => api('DELETE', `stock_reservations?id=eq.${id}`),
+};
 ```
 
-**State**: Global `items[]`, `memos[]`, `currentTab`, `currentPage`, `editingId`, `deleteMode`, `boxEditingName`, `categoryEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
+**State**: Global `items[]`, `memos[]`, `reservations[]`, `currentTab`, `currentPage`, `reservationBusyId`, `editingId`, `deleteMode`, `boxEditingName`, `categoryEditingName`, `groupView`, `collapsedBoxes` — direct DOM manipulation, no framework.
 
-**Page navigation**: Bottom navigation switches `.page-view` sections with `navigatePage(page)`. Home shows `#home-memo-list` as a read-only memo alert feed plus the stock list. The memo page shows the full memo card. The in/out page shows the operation card. Search opens `#search-overlay`; applying it writes to `input#search`, returns to home, and calls `renderTable()`.
+**Page navigation**: Bottom navigation switches `.page-view` sections with `navigatePage(page)`. Home shows `#home-memo-list` as a memo/reservation alert feed plus the stock list. The memo page shows the full memo card and reservation cards. The in/out page shows the operation card. Search opens `#search-overlay`; applying it writes to `input#search`, returns to home, and calls `renderTable()`.
 
-**Web Push notifications**: `PUSH_VAPID_PUBLIC_KEY` lives in ignored `config.js`. The memo page's `.push-enable-btn` calls `enablePushNotifications()`, stores browser subscriptions in `push_subscriptions`, and `addMemo()` calls the `memo-push` Edge Function after a successful insert. `service-worker.js` handles `push` and `notificationclick`. Server secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`; generate keys with `node tools/generate-vapid-keys.js`.
+**Web Push notifications**: `PUSH_VAPID_PUBLIC_KEY` lives in ignored `config.js`. The memo page's `.push-enable-btn` calls `enablePushNotifications()`, stores browser subscriptions in `push_subscriptions`, and `addMemo()` / reservation creation call the `memo-push` Edge Function after a successful insert. Reservation pushes pass a custom `title` and `tag`; existing memo pushes still work without them. `service-worker.js` handles `push` and `notificationclick`. Server secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`; generate keys with `node tools/generate-vapid-keys.js`.
+
+**Stock reservations**: "出庫希望" and "入庫予定" are reservations, not stock movements. Creating one inserts a row in `stock_reservations` and sends a push notification without changing `stock.qty`. Home row expansion includes reservation quantity plus "出庫希望" / "入庫予定"; the in/out page has separate reservation buttons beside normal stock movement buttons. `executeReservation()` applies the stock update and deletes the reservation; out reservations re-check insufficient stock at execution time. `cancelReservation()` only deletes the reservation row.
 
 **Storage location management**: `box` field acts as the storage-location grouping key. Per-item edit updates only that item's box. The "場所管理" modal (`openBoxManager`) handles bulk renames across all items via `db.updateByBox`.
 

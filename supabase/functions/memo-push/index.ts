@@ -8,6 +8,9 @@ type MemoPushRequest = {
     created_at?: string;
   };
   sender_email?: string;
+  title?: string;
+  tag?: string;
+  url?: string;
 };
 
 type PushSubscriptionRow = {
@@ -56,6 +59,7 @@ Deno.serve(async (req) => {
     const payload = await req.json() as MemoPushRequest;
     const memo = payload.memo || {};
     const body = truncateBody(memo.body || '新しいメモが追加されました。');
+    const title = truncateBody(payload.title || 'Zaiko メモ');
 
     const supabase = createClient(
       requiredEnv('SUPABASE_URL'),
@@ -78,10 +82,10 @@ Deno.serve(async (req) => {
     console.log('memo-push subscriptions:', subscriptionCount);
 
     const notificationPayload = JSON.stringify({
-      title: 'Zaiko メモ',
+      title,
       body,
-      url: '/stock-room/',
-      tag: memo.id ? `zaiko-memo-${memo.id}` : 'zaiko-memo',
+      url: payload.url || '/stock-room/',
+      tag: payload.tag || (memo.id ? `zaiko-memo-${memo.id}` : 'zaiko-memo'),
       memo_id: memo.id || null,
       sender_email: payload.sender_email || '',
       created_at: memo.created_at || null,

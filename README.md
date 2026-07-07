@@ -1,6 +1,6 @@
 # zaiko — 日用品ストック管理アプリ
 
-家族2人で使う日用品の在庫を、できるだけ素早く登録・更新・確認するためのWebアプリです。
+家族で使う日用品の在庫を、できるだけ素早く登録・更新・確認するためのWebアプリです。
 
 ---
 
@@ -9,7 +9,7 @@
 | 項目 | 内容 |
 |---|---|
 | 用途 | 日用品ストックの在庫管理 |
-| 利用者 | 2人（家族） |
+| 利用者 | 数人（家族） |
 | 形式 | PWA対応Webアプリ |
 | URL | `https://yourdomain.com/stock-room/` |
 | ログインURL | `https://yourdomain.com/stock-room/login/` |
@@ -37,7 +37,7 @@ stock-room/
 ├── index.html               # アプリ本体（認証済みユーザーのみ表示）
 ├── config.js                # Supabase設定・許可アカウント定義
 ├── manifest.json            # PWAマニフェスト
-├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v16）
+├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v17）
 ├── favicon.ico              # ファビコン
 ├── zaiko_header_logo.svg    # ヘッダーロゴ
 ├── images/                  # 下部ナビ用SVGアイコン
@@ -55,7 +55,7 @@ stock-room/
 
 ### ページ内ナビ
 - 画面下部のナビゲーションで「ホーム」「メモ」「入庫・出庫」「検索」を切り替え
-- ホームはメモをアラート表示し、その下に在庫一覧を表示
+- ホームはメモと入出庫予約をアラート表示し、その下に在庫一覧を表示
 - メモページはメモカード全体を表示し、メモ追加・削除を行う
 - 入庫・出庫ページは操作パネルを表示
 - 検索はモーダルで開き、検索語を在庫一覧の絞り込みに反映する
@@ -63,12 +63,20 @@ stock-room/
 ### Web Push通知
 - メモページの「通知ON」ボタンから端末ごとに通知を許可
 - メモ追加後、Supabase Edge Function（`memo-push`）を呼び出して購読端末へ通知
+- 出庫希望・入庫予定の予約追加後も同じEdge Functionを呼び出して購読端末へ通知
 - PWAとしてホーム画面に追加したiOS/iPadOS 16.4以降、Android Chrome、デスクトップChrome/Edge等で利用可能
 
 ### 在庫操作
 - **入庫** — 品目を選択（または新規登録）して数量・カテゴリ・保管場所を入力
 - **出庫** — 品目を選択して数量を減らす。在庫0未満はバリデーションで禁止
+- **入庫予定 / 出庫希望** — 実在庫を変更せずに予約カードを追加。カードの「入庫」「出庫」で実在庫に反映し、「取消」で予約を削除
 - **在庫一覧** — 品名・カテゴリ・在庫数・保管場所を一覧表示。品名で絞り込み検索、品名順・カテゴリ順の表示ソートが可能
+
+### 入出庫予約
+- ホームの在庫一覧で行をクリックすると、編集フォーム内に「予約数量」「出庫希望」「入庫予定」を表示
+- 入庫・出庫ページにも通常操作とは別に「入庫予定」「出庫希望」ボタンを表示
+- 予約は `stock_reservations` テーブルに保存され、実行されるまで `stock.qty` には影響しない
+- 予約カードはメモの下に表示され、出庫予約の実行時には現在庫不足を再チェックする
 
 ### 編集・削除
 - **行クリック編集** — 在庫一覧の行をクリックすると品名・カテゴリ・保管場所をインライン編集（その品目のみ更新）
@@ -139,6 +147,26 @@ const ALLOWED_EMAILS = [
 | box | text | 保管場所（箱番号） |
 | created_at | timestamptz | 作成日時 |
 
+### テーブル: memo
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| id | uuid | 主キー（自動生成） |
+| body | text | メモ本文 |
+| created_at | timestamptz | 作成日時 |
+
+### テーブル: stock_reservations
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| id | uuid | 主キー（自動生成） |
+| kind | text | `in`（入庫予定）または `out`（出庫希望） |
+| item_id | uuid | 対象品目のID |
+| item_name | text | 予約作成時点の品名 |
+| qty | integer | 予約数量（1以上） |
+| user_email | text | 予約作成ユーザーのメール |
+| created_at | timestamptz | 作成日時 |
+
 ### テーブル: push_subscriptions
 
 | カラム | 型 | 説明 |
@@ -177,7 +205,7 @@ create policy "allow_authenticated"
 `service-worker.js` の3行目のバージョン番号を上げてアップロードしてください。
 
 ```javascript
-const CACHE_VERSION = 'zaiko-v16'; // → 'zaiko-v17' に変更
+const CACHE_VERSION = 'zaiko-v17'; // → 'zaiko-v18' に変更
 ```
 
 ---
@@ -197,6 +225,7 @@ const PUSH_VAPID_PUBLIC_KEY = '生成した PUSH_VAPID_PUBLIC_KEY';
 ```
 
 ### 3. Supabase Secrets を設定
+Supabase Edge Functions の環境変数 / Secrets に入れる値
 
 ```bash
 supabase secrets set VAPID_PUBLIC_KEY="生成した VAPID_PUBLIC_KEY"
@@ -206,15 +235,24 @@ supabase secrets set VAPID_SUBJECT="mailto:your-email@example.com"
 
 `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` はSupabase Edge Functionsの標準環境変数を使います。
 
-### 4. Edge Function をデプロイ
+supabaseプロジェクト内で Edge Functions → Secrets に進み1つずつ追加してください。
 
+### 4. Edge Function をデプロイ
 ```bash
 supabase functions deploy memo-push
 ```
+あるいは
+
+Supabaseプロジェクトを開く > 左メニュー Edge Functions → Deploy a new function → Via Editor。
+
+Function nameは `memo-push`
+ローカルファイル `supabase/functions/memo-push/index.ts` の内容をコピペして反映 `Deploy function`
+（既に `memo-push` がある場合は、その関数を開いてコードを貼り替え、`Deploy updates`）
 
 ### 5. DBスキーマを反映
-
-`supabase_rls.sql` の `push_subscriptions` セクションを Supabase SQL Editor で実行してください。
+1. SQL Editor
+Supabaseプロジェクトを開く → 左メニュー SQL Editor → New query。
+`supabase_rls.sql` の `stock_reservations` と `push_subscriptions` セクションを Supabase SQL Editor で実行してください。
 
 ---
 

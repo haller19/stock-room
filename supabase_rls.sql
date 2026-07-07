@@ -59,6 +59,38 @@ create policy "allow_all_for_authenticated"
 select * from memo order by created_at desc;
 
 -- =====================================================
+-- stock_reservations テーブル（入出庫予約）
+-- =====================================================
+
+-- 1. テーブル作成
+create table if not exists stock_reservations (
+  id         uuid        primary key default gen_random_uuid(),
+  kind       text        not null check (kind in ('in', 'out')),
+  item_id    uuid        not null,
+  item_name  text        not null,
+  qty        integer     not null check (qty > 0),
+  user_email text,
+  created_at timestamptz default now()
+);
+
+create index if not exists stock_reservations_created_at_idx
+  on stock_reservations (created_at desc);
+
+-- 2. RLS 有効化
+alter table stock_reservations enable row level security;
+
+-- 3. 認証済みユーザーに全操作を許可
+create policy "allow_all_for_authenticated"
+  on stock_reservations
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- 確認
+select * from stock_reservations order by created_at desc;
+
+-- =====================================================
 -- push_subscriptions テーブル（Web Push 通知購読）
 -- =====================================================
 

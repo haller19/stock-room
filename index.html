@@ -227,6 +227,19 @@
     box-shadow: 0 3px 14px rgba(224,92,92,.3);
   }
   .btn-sm { width: auto; padding: 5px 12px; font-size: 12px; font-weight: 600; }
+  .btn-outline {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    box-shadow: none;
+  }
+  .btn-outline:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+  .form-actions { display: flex; gap: 8px; }
+  .form-actions .btn { flex: 1; }
 
   /* ===== NEW ITEM ===== */
   .new-item-row {
@@ -328,13 +341,22 @@
     background: var(--accent-light) !important;
     border-bottom: 1px solid var(--accent-mid);
   }
-  .edit-row input[type="text"] {
+  .edit-row input[type="text"], .edit-row input[type="number"] {
     padding: 7px 9px; font-size: 13px;
     border-color: var(--accent-mid); background: #fff;
     border-radius: 6px;
   }
   .edit-actions { display: flex; gap: 6px; margin-top: 10px; }
   .edit-actions .btn { flex: 1; padding: 7px 8px; font-size: 12px; border-radius: 6px; }
+  .reservation-row {
+    display: flex; flex-wrap: wrap; align-items: end; gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--accent-mid);
+  }
+  .reservation-row label { margin-bottom: 4px; }
+  .reservation-row input { width: 82px; }
+  .reservation-row .btn { width: auto; flex: 0 0 auto; padding: 7px 10px; font-size: 12px; border-radius: 6px; }
   .btn-delete {
     background: none; border: 1px solid var(--danger);
     color: var(--danger); flex: 0 0 auto !important;
@@ -445,6 +467,47 @@
   }
   .memo-del:hover { color: var(--danger); }
   .memo-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0; }
+
+  /* ===== 予約カード ===== */
+  .reservation-alert {
+    align-items: stretch;
+    flex-wrap: wrap;
+    background: #fff8e8;
+    border-color: #f0c36a;
+  }
+  .reservation-alert--out {
+    background: #fff2f2;
+    border-color: #f2b3b3;
+  }
+  .reservation-alert__main {
+    flex: 1 1 180px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .reservation-alert__title {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .reservation-alert__time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .reservation-alert__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .reservation-alert__actions .btn {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 
   /* ===== 保管場所管理モーダル ===== */
   .box-mgr-header {
@@ -607,9 +670,11 @@
     tr:hover td { background: #1a3232; }
 
     .edit-row td { background: var(--accent-light) !important; }
-    .edit-row input[type="text"] { background: #0e1f1f; }
+    .edit-row input[type="text"], .edit-row input[type="number"] { background: #0e1f1f; }
     .dialog { background: #152828; border-color: #1e3a3a; }
     .home-memo-alert { background: #0e1f1f; border-color: var(--accent-mid); }
+    .reservation-alert { background: #2d2310; border-color: #7b5a1f; }
+    .reservation-alert--out { background: #2a1515; border-color: #6a2b2b; }
     .bottom-nav {
       background: rgba(21,40,40,.96);
       border-top-color: var(--border);
@@ -705,7 +770,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v16</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v17</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -722,6 +787,7 @@
   <section class="page-view page-view--home active" id="page-home" data-page="home">
     <div class="home-alert-card">
       <div class="card-body">
+        <div class="msg" id="home-msg"></div>
         <div class="home-memo-list" id="home-memo-list">
           <div class="memo-empty">メモはありません</div>
         </div>
@@ -806,6 +872,17 @@
         <!-- 入庫フォーム -->
         <div id="form-in">
           <div class="form-group">
+            <label>保管場所（箱番号）</label>
+            <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off" oninput="onInFilterChange()">
+            <div class="box-chips" id="in-box-chips"></div>
+          </div>
+          <div class="form-group">
+            <label>カテゴリ</label>
+            <input type="text" id="in-category" placeholder="例：台所用品" maxlength="30" autocomplete="off" oninput="onInFilterChange()">
+            <div class="category-chips" id="in-category-chips"></div>
+          </div>
+
+          <div class="form-group">
             <label>品目</label>
             <select id="in-item" onchange="onInItemChange()">
               <option value="">— 品目を選ぶ —</option>
@@ -831,22 +908,26 @@
             <label>追加数量</label>
             <input type="number" id="in-qty" value="1" min="1" max="999">
           </div>
-          <div class="form-group">
-            <label>保管場所（箱番号）</label>
-            <input type="text" id="in-box" placeholder="例：A-3" maxlength="20" autocomplete="off">
-            <div class="box-chips" id="in-box-chips"></div>
-          </div>
-          <div class="form-group">
-            <label>カテゴリ</label>
-            <input type="text" id="in-category" placeholder="例：台所用品" maxlength="30" autocomplete="off">
-            <div class="category-chips" id="in-category-chips"></div>
-          </div>
 
-          <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="btn-in" onclick="doIn()">入庫する</button>
+            <button class="btn btn-outline" id="btn-reserve-in" onclick="addReservationFromIn()">入庫予定</button>
+          </div>
         </div>
 
         <!-- 出庫フォーム -->
         <div id="form-out" style="display:none">
+          <div class="form-group">
+            <label>保管場所（絞り込み）</label>
+            <input type="text" id="out-box" placeholder="例：A-3" maxlength="20" autocomplete="off" oninput="onOutFilterChange()">
+            <div class="box-chips" id="out-box-chips"></div>
+          </div>
+          <div class="form-group">
+            <label>カテゴリ（絞り込み）</label>
+            <input type="text" id="out-category" placeholder="例：台所用品" maxlength="30" autocomplete="off" oninput="onOutFilterChange()">
+            <div class="category-chips" id="out-category-chips"></div>
+          </div>
+
           <div class="form-group">
             <label>品目</label>
             <select id="out-item" onchange="onOutItemChange()">
@@ -864,7 +945,10 @@
             <input type="number" id="out-qty" value="1" min="1" max="999">
           </div>
 
-          <button class="btn btn-danger" id="btn-out" onclick="doOut()">出庫する</button>
+          <div class="form-actions">
+            <button class="btn btn-danger" id="btn-out" onclick="doOut()">出庫する</button>
+            <button class="btn btn-outline" id="btn-reserve-out" onclick="addReservationFromOut()">出庫希望</button>
+          </div>
         </div>
 
       </div>
@@ -939,6 +1023,12 @@ const memoDb = {
   delete: (id)   => api('DELETE', `memo?id=eq.${id}`),
 };
 
+const reservationDb = {
+  list:   ()     => api('GET',    'stock_reservations?select=*&order=created_at.desc'),
+  insert: (row)  => api('POST',   'stock_reservations', row),
+  delete: (id)   => api('DELETE', `stock_reservations?id=eq.${id}`),
+};
+
 const pushDb = {
   upsert: (row) => api(
     'POST',
@@ -955,8 +1045,10 @@ const pushDb = {
 // ===== STATE =====
 let items = [];
 let memos = [];
+let reservations = [];
 let currentTab = 'in';
 let currentPage = 'home';
+let reservationBusyId = null;
 
 // ===== INIT =====
 async function initApp() {
@@ -973,10 +1065,16 @@ async function initApp() {
   }
   try {
     memos = await memoDb.list();
-    renderMemos();
   } catch (e) {
     showMemoMsg('err', 'メモの取得に失敗しました。Supabase に memo テーブルが存在するか確認してください。');
   }
+  try {
+    reservations = await reservationDb.list();
+  } catch (e) {
+    reservations = [];
+    showMemoMsg('err', '予約の取得に失敗しました。Supabase に stock_reservations テーブルが存在するか確認してください。');
+  }
+  renderMemos();
 }
 
 // 認証チェック・初期化
@@ -1133,7 +1231,7 @@ async function initPushState() {
   }
 }
 
-async function sendMemoPush(memo) {
+async function sendMemoPush(memo, options = {}) {
   if (!getPushPublicKey() || !currentSession?.access_token) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/memo-push`, {
     method: 'POST',
@@ -1148,7 +1246,10 @@ async function sendMemoPush(memo) {
         body: memo.body,
         created_at: memo.created_at
       },
-      sender_email: currentSession.user?.email || ''
+      sender_email: currentSession.user?.email || '',
+      title: options.title || undefined,
+      tag: options.tag || undefined,
+      url: options.url || undefined
     })
   });
   if (!res.ok) {
@@ -1196,12 +1297,48 @@ function switchTab(tab) {
 }
 
 // ===== SELECTS =====
+function getFieldValue(id) {
+  return document.getElementById(id)?.value.trim() || '';
+}
+
+function getSelectFilters(selectId) {
+  if (selectId === 'out-item') {
+    return {
+      box: getFieldValue('out-box'),
+      category: getFieldValue('out-category')
+    };
+  }
+  return {
+    box: getFieldValue('in-box'),
+    category: getFieldValue('in-category')
+  };
+}
+
+function selectFilterScore(item, filters) {
+  let score = 0;
+  if (filters.box) {
+    score += (item.box || '') === filters.box ? 0 : 4;
+  }
+  if (filters.category) {
+    score += (item.category || '') === filters.category ? 0 : 2;
+  }
+  return score;
+}
+
+function sortItemsForSelect(selectId) {
+  const filters = getSelectFilters(selectId);
+  return [...items].sort((a, b) => {
+    const scoreDiff = selectFilterScore(a, filters) - selectFilterScore(b, filters);
+    return scoreDiff || compareText(a.name, b.name);
+  });
+}
+
 function populateSelects() {
   ['in-item', 'out-item'].forEach(id => {
     const sel = document.getElementById(id);
     const prev = sel.value;
     sel.innerHTML = `<option value="">— 品目を選ぶ —</option>`;
-    items.forEach(item => {
+    sortItemsForSelect(id).forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.id;
       opt.textContent = id === 'out-item'
@@ -1211,6 +1348,14 @@ function populateSelects() {
     });
     if (prev) sel.value = prev;
   });
+}
+
+function onInFilterChange() {
+  populateSelects();
+}
+
+function onOutFilterChange() {
+  populateSelects();
 }
 
 // ===== 保管場所・カテゴリ候補チップ =====
@@ -1224,7 +1369,7 @@ function getCategoryList() {
     .sort((a, b) => a.localeCompare(b, 'ja'));
 }
 
-function renderValueChips(chipsId, inputId, values, chipClass) {
+function renderValueChips(chipsId, inputId, values, chipClass, onSelect) {
   const wrap = document.getElementById(chipsId);
   if (!wrap) return;
   if (values.length === 0) { wrap.innerHTML = ''; return; }
@@ -1240,24 +1385,27 @@ function renderValueChips(chipsId, inputId, values, chipClass) {
         inputEl.value = value;
         // selected状態を更新
         wrap.querySelectorAll(`.${chipClass}`).forEach(b => b.classList.toggle('selected', b.textContent === value));
+        if (onSelect) onSelect(value);
       }
     });
     wrap.appendChild(btn);
   });
 }
 
-function renderBoxChips(chipsId, inputId) {
-  renderValueChips(chipsId, inputId, getBoxList(), 'box-chip');
+function renderBoxChips(chipsId, inputId, onSelect) {
+  renderValueChips(chipsId, inputId, getBoxList(), 'box-chip', onSelect);
 }
 
-function renderCategoryChips(chipsId, inputId) {
-  renderValueChips(chipsId, inputId, getCategoryList(), 'category-chip');
+function renderCategoryChips(chipsId, inputId, onSelect) {
+  renderValueChips(chipsId, inputId, getCategoryList(), 'category-chip', onSelect);
 }
 
 function populateInputChips() {
-  renderBoxChips('in-box-chips', 'in-box');
+  renderBoxChips('in-box-chips', 'in-box', onInFilterChange);
+  renderBoxChips('out-box-chips', 'out-box', onOutFilterChange);
   renderBoxChips('edit-box-chips', 'edit-box');
-  renderCategoryChips('in-category-chips', 'in-category');
+  renderCategoryChips('in-category-chips', 'in-category', onInFilterChange);
+  renderCategoryChips('out-category-chips', 'out-category', onOutFilterChange);
   renderCategoryChips('edit-category-chips', 'edit-category');
 }
 
@@ -1267,6 +1415,7 @@ function onInItemChange() {
   if (!id) {
     document.getElementById('in-box').value = '';
     document.getElementById('in-category').value = '';
+    populateInputChips();
     return;
   }
   const item = items.find(i => i.id === id);
@@ -1274,6 +1423,7 @@ function onInItemChange() {
     document.getElementById('in-box').value = item.box || '';
     document.getElementById('in-category').value = item.category || '';
   }
+  populateInputChips();
   cancelNewItem(); clearMsg();
 }
 
@@ -1402,6 +1552,85 @@ async function doOut() {
   } finally {
     setLoading('btn-out', false);
   }
+}
+
+// ===== 入出庫予約 =====
+function addReservationFromIn() {
+  const id = document.getElementById('in-item').value;
+  const qty = parseInt(document.getElementById('in-qty').value, 10);
+  addStockReservation('in', id, qty, 'inout', 'btn-reserve-in');
+}
+
+function addReservationFromOut() {
+  const id = document.getElementById('out-item').value;
+  const qty = parseInt(document.getElementById('out-qty').value, 10);
+  addStockReservation('out', id, qty, 'inout', 'btn-reserve-out');
+}
+
+function addReservationFromRow(id, kind) {
+  const qty = parseInt(document.getElementById(`reserve-qty-${id}`)?.value, 10);
+  addStockReservation(kind, id, qty, 'home');
+}
+
+async function addStockReservation(kind, itemId, qty, feedbackScope, btnId) {
+  if (!itemId) return showReservationFeedback(feedbackScope, 'err', '品目を選んでください。');
+  if (!qty || qty < 1) return showReservationFeedback(feedbackScope, 'err', '数量は1以上を入力してください。');
+
+  const item = items.find(i => i.id === itemId);
+  if (!item) return showReservationFeedback(feedbackScope, 'err', '品目が見つかりません。');
+
+  setLoading(btnId, true);
+  setSyncStatus('loading', '予約中…');
+  try {
+    const [reservation] = await reservationDb.insert({
+      kind,
+      item_id: item.id,
+      item_name: item.name,
+      qty,
+      user_email: currentSession?.user?.email || ''
+    });
+    reservations.unshift(reservation);
+    renderMemos();
+    setSyncStatus('ok', '同期済み');
+
+    const body = getReservationText(reservation);
+    showReservationFeedback(feedbackScope, 'ok', `✓ ${body}を追加しました。`);
+    sendReservationPush(reservation)
+      .then(result => {
+        if (!result) return;
+        if (result.sent > 0) {
+          showReservationFeedback(feedbackScope, 'ok', `${body}を追加し、通知を${result.sent}件送信しました。`);
+        } else if (result.failed > 0) {
+          showReservationFeedback(feedbackScope, 'err', `予約は追加済みですが、通知送信に失敗しました（失敗${result.failed}件）。`);
+        } else {
+          showReservationFeedback(feedbackScope, 'err', '予約は追加済みですが、通知先が登録されていません。各端末で通知ONを押してください。');
+        }
+      })
+      .catch(e => {
+        console.warn('Reservation push notification failed:', e);
+        showReservationFeedback(feedbackScope, 'err', '予約は追加済みですが、通知送信に失敗しました: ' + e.message);
+      });
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showReservationFeedback(feedbackScope, 'err', '予約の追加に失敗しました: ' + e.message);
+  } finally {
+    setLoading(btnId, false);
+  }
+}
+
+function sendReservationPush(reservation) {
+  return sendMemoPush(
+    {
+      id: reservation.id,
+      body: getReservationText(reservation),
+      created_at: reservation.created_at
+    },
+    {
+      title: 'Zaiko 予約',
+      tag: `zaiko-reservation-${reservation.id}`,
+      url: '/stock-room/'
+    }
+  );
 }
 
 // ===== TABLE =====
@@ -1540,6 +1769,14 @@ function renderTable() {
             <button class="btn btn-primary" onclick="saveEdit('${item.id}')">保存する</button>
             <button class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text)" onclick="closeEdit()">キャンセル</button>
           </div>
+          <div class="reservation-row">
+            <div>
+              <label style="font-size:10px;color:#4a6ea8;margin-bottom:4px;display:block">予約数量</label>
+              <input type="number" id="reserve-qty-${item.id}" value="1" min="1" max="999">
+            </div>
+            <button class="btn btn-danger" onclick="addReservationFromRow('${item.id}', 'out')">出庫希望</button>
+            <button class="btn btn-primary" onclick="addReservationFromRow('${item.id}', 'in')">入庫予定</button>
+          </div>
         </td>
       `;
       tbody.appendChild(editTr);
@@ -1665,6 +1902,7 @@ async function saveEdit(id) {
     populateSelects();
     populateInputChips();
     renderTable();
+    renderMemos();
   } catch (e) {
     setSyncStatus('err', 'エラー');
     showMsg('err', '更新に失敗しました: ' + e.message);
@@ -1710,6 +1948,7 @@ async function confirmDelete() {
     showMsg('ok', `✓ 「${name}」を削除しました。`);
     populateSelects();
     renderTable();
+    renderMemos();
   } catch (e) {
     setSyncStatus('err', 'エラー');
     showMsg('err', '削除に失敗しました: ' + e.message);
@@ -1911,34 +2150,38 @@ async function saveCategoryRename(oldCategory) {
 // ===== MEMO =====
 function renderMemos() {
   const list = document.getElementById('memo-list');
-  if (memos.length === 0) {
-    list.innerHTML = '<div class="memo-empty">メモはありません</div>';
-    renderHomeMemos();
-    return;
-  }
-  list.innerHTML = memos.map(m => `
+  if (!list) return;
+
+  const parts = [];
+  if (memos.length > 0) {
+    parts.push(memos.map(m => `
     <div class="memo-item">
       <span class="memo-body">${esc(m.body)}</span>
       <span class="memo-time">${fmtMemoTime(m.created_at)}</span>
       <button class="memo-del" onclick="deleteMemo('${m.id}')" title="削除">×</button>
     </div>
-  `).join('');
+    `).join(''));
+  }
+  parts.push(renderReservationCards(false));
+
+  list.innerHTML = parts.join('') || '<div class="memo-empty">メモと予約はありません</div>';
   renderHomeMemos();
 }
 
 function renderHomeMemos() {
   const list = document.getElementById('home-memo-list');
   if (!list) return;
-  if (memos.length === 0) {
-    list.innerHTML = '<div class="memo-empty">メモはありません</div>';
-    return;
+  const parts = [];
+  if (memos.length > 0) {
+    parts.push(memos.map(m => `
+      <div class="home-memo-alert">
+        <span class="home-memo-alert__body">${esc(m.body)}</span>
+        <span class="home-memo-alert__time">${fmtMemoTime(m.created_at)}</span>
+      </div>
+    `).join(''));
   }
-  list.innerHTML = memos.map(m => `
-    <div class="home-memo-alert">
-      <span class="home-memo-alert__body">${esc(m.body)}</span>
-      <span class="home-memo-alert__time">${fmtMemoTime(m.created_at)}</span>
-    </div>
-  `).join('');
+  parts.push(renderReservationCards(true));
+  list.innerHTML = parts.join('') || '<div class="memo-empty">メモと予約はありません</div>';
 }
 
 function fmtMemoTime(ts) {
@@ -1950,12 +2193,135 @@ function fmtMemoTime(ts) {
   return `${mm}/${dd} ${hh}:${mi}`;
 }
 
+function getReservationKindLabel(kind) {
+  return kind === 'out' ? '出庫希望' : '入庫予定';
+}
+
+function getReservationActionLabel(kind) {
+  return kind === 'out' ? '出庫' : '入庫';
+}
+
+function getReservationItem(reservation) {
+  return items.find(i => i.id === reservation.item_id) || null;
+}
+
+function getReservationDisplayName(reservation) {
+  return getReservationItem(reservation)?.name || reservation.item_name || '削除済み品目';
+}
+
+function getReservationText(reservation) {
+  return `${getReservationKindLabel(reservation.kind)}：${getReservationDisplayName(reservation)}（${Number(reservation.qty) || 0}個）`;
+}
+
+function renderReservationCards(home) {
+  if (reservations.length === 0) return '';
+  const baseClass = home ? 'home-memo-alert' : 'memo-item';
+  return reservations.map(r => {
+    const missingItem = !getReservationItem(r);
+    const busy = reservationBusyId === r.id;
+    const disabled = (missingItem || busy) ? ' disabled' : '';
+    const actionClass = r.kind === 'out' ? 'btn-danger' : 'btn-primary';
+    const actionLabel = busy ? '処理中…' : getReservationActionLabel(r.kind);
+    const meta = `${fmtMemoTime(r.created_at)}${missingItem ? ' / 品目なし' : ''}`;
+    return `
+      <div class="${baseClass} reservation-alert reservation-alert--${esc(r.kind)}">
+        <div class="reservation-alert__main">
+          <span class="reservation-alert__title">${esc(getReservationText(r))}</span>
+          <span class="reservation-alert__time">${esc(meta)}</span>
+        </div>
+        <div class="reservation-alert__actions">
+          <button class="btn ${actionClass} btn-sm" onclick="executeReservation('${r.id}')"${disabled}>${actionLabel}</button>
+          <button class="btn btn-outline btn-sm" onclick="cancelReservation('${r.id}')"${busy ? ' disabled' : ''}>取消</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function executeReservation(id) {
+  if (reservationBusyId) return;
+  const reservation = reservations.find(r => r.id === id);
+  if (!reservation) return;
+  const feedbackScope = currentPage === 'memo' ? 'memo' : 'home';
+  const item = getReservationItem(reservation);
+  const qty = Number(reservation.qty) || 0;
+
+  if (!item) return showReservationFeedback(feedbackScope, 'err', '対象の品目が見つかりません。予約を取り消してください。');
+  if (reservation.kind === 'out' && item.qty - qty < 0) {
+    return showReservationFeedback(feedbackScope, 'err', `在庫不足です。現在庫 ${item.qty}個 に対して ${qty}個 の出庫はできません。`);
+  }
+
+  reservationBusyId = id;
+  renderMemos();
+  setSyncStatus('loading', '更新中…');
+  try {
+    const nextQty = reservation.kind === 'out' ? item.qty - qty : item.qty + qty;
+    const [updated] = await db.update(item.id, { qty: nextQty });
+    Object.assign(item, updated);
+    await reservationDb.delete(id);
+    reservations = reservations.filter(r => r.id !== id);
+
+    populateSelects();
+    renderTable();
+    setSyncStatus('ok', '同期済み');
+    showReservationFeedback(feedbackScope, 'ok', `✓ ${item.name} を ${qty}個 ${getReservationActionLabel(reservation.kind)}しました（現在 ${item.qty}個）。`);
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showReservationFeedback(feedbackScope, 'err', `${getReservationActionLabel(reservation.kind)}に失敗しました: ` + e.message);
+  } finally {
+    reservationBusyId = null;
+    renderMemos();
+  }
+}
+
+async function cancelReservation(id) {
+  if (reservationBusyId) return;
+  const reservation = reservations.find(r => r.id === id);
+  if (!reservation) return;
+  const feedbackScope = currentPage === 'memo' ? 'memo' : 'home';
+
+  reservationBusyId = id;
+  renderMemos();
+  setSyncStatus('loading', '取消中…');
+  try {
+    await reservationDb.delete(id);
+    reservations = reservations.filter(r => r.id !== id);
+    setSyncStatus('ok', '同期済み');
+    showReservationFeedback(feedbackScope, 'ok', `✓ ${getReservationText(reservation)}を取り消しました。`);
+  } catch (e) {
+    setSyncStatus('err', 'エラー');
+    showReservationFeedback(feedbackScope, 'err', '予約の取消に失敗しました: ' + e.message);
+  } finally {
+    reservationBusyId = null;
+    renderMemos();
+  }
+}
+
 function showMemoMsg(type, text) {
   const el = document.getElementById('memo-msg');
   el.className = `msg ${type}`;
   el.textContent = text;
   clearTimeout(el._t);
   el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
+}
+
+function showHomeMsg(type, text) {
+  const el = document.getElementById('home-msg');
+  if (!el) return;
+  el.className = `msg ${type}`;
+  el.textContent = text;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'msg'; }, 5000);
+}
+
+function showReservationFeedback(scope, type, text) {
+  if (scope === 'inout') {
+    showMsg(type, text);
+  } else if (scope === 'memo') {
+    showMemoMsg(type, text);
+  } else {
+    showHomeMsg(type, text);
+  }
 }
 
 async function addMemo() {
@@ -2014,9 +2380,14 @@ function esc(str) {
 function setLoading(btnId, loading) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
+  const labels = {
+    'btn-in': '入庫する',
+    'btn-out': '出庫する',
+    'btn-reserve-in': '入庫予定',
+    'btn-reserve-out': '出庫希望'
+  };
   btn.disabled = loading;
-  if (btnId === 'btn-in')  btn.textContent = loading ? '処理中…' : '入庫する';
-  if (btnId === 'btn-out') btn.textContent = loading ? '処理中…' : '出庫する';
+  btn.textContent = loading ? '処理中…' : (labels[btnId] || btn.textContent);
 }
 
 // ===== SEARCH MODAL =====
@@ -2121,6 +2492,7 @@ const AUTO_REFRESH_INTERVAL = 60 * 1000;
 async function autoRefresh() {
   // 操作中（編集・削除ダイアログ表示中）はスキップ
   if (editingId) return;
+  if (reservationBusyId) return;
   if (document.getElementById('delete-overlay').classList.contains('visible')) return;
 
   try {
@@ -2130,6 +2502,7 @@ async function autoRefresh() {
       populateSelects();
       populateInputChips();
       renderTable();
+      renderMemos();
       setSyncStatus('ok', '更新しました');
       setTimeout(() => setSyncStatus('ok', '同期済み'), 2000);
     }
@@ -2141,6 +2514,13 @@ async function autoRefresh() {
     const latestMemos = await memoDb.list();
     if (JSON.stringify(latestMemos) !== JSON.stringify(memos)) {
       memos = latestMemos;
+      renderMemos();
+    }
+  } catch (_) {}
+  try {
+    const latestReservations = await reservationDb.list();
+    if (JSON.stringify(latestReservations) !== JSON.stringify(reservations)) {
+      reservations = latestReservations;
       renderMemos();
     }
   } catch (_) {}

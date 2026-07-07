@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v16';
+const CACHE_VERSION = 'zaiko-v17';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
@@ -91,7 +91,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ===== PUSH: メモ追加通知 =====
+// ===== PUSH: メモ・予約通知 =====
 self.addEventListener('push', event => {
   let data = {};
   try {
