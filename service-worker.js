@@ -1,6 +1,6 @@
 // ===== SERVICE WORKER =====
 // バージョンを上げるとキャッシュが更新されます
-const CACHE_VERSION = 'zaiko-v17';
+const CACHE_VERSION = 'zaiko-v18';
 
 const PRECACHE_ASSETS = [
   '/stock-room/',
@@ -100,9 +100,9 @@ self.addEventListener('push', event => {
     data = { body: event.data?.text() || '' };
   }
 
-  const title = data.title || 'Zaiko メモ';
+  const title = data.title || '通知';
   const options = {
-    body: data.body || '新しいメモが追加されました。',
+    body: data.body || '通知があります。',
     icon: '/stock-room/icons/icon-192.png',
     badge: '/stock-room/icons/icon-180.png',
     tag: data.tag || 'zaiko-memo',

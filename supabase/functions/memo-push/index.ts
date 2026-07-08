@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json() as MemoPushRequest;
     const memo = payload.memo || {};
-    const body = truncateBody(memo.body || '新しいメモが追加されました。');
-    const title = truncateBody(payload.title || 'Zaiko メモ');
+    const body = truncateBody(memo.body || '通知があります。');
+    const title = truncateBody(payload.title || '通知');
 
     const supabase = createClient(
       requiredEnv('SUPABASE_URL'),

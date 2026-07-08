@@ -770,7 +770,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v17</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v18</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -1117,6 +1117,30 @@ function setSyncStatus(state, label) {
 }
 
 // ===== WEB PUSH =====
+const PUSH_NOTIFICATION_COPY = {
+  memo: {
+    title: 'メモ',
+    defaultBody: '新しいメモが追加されました。',
+    tagPrefix: 'zaiko-memo'
+  },
+  reservation: {
+    title: '予約',
+    defaultBody: '予約が追加されました。',
+    tagPrefix: 'zaiko-reservation'
+  }
+};
+
+function buildPushNotification(kind, memo, options = {}) {
+  const copy = PUSH_NOTIFICATION_COPY[kind] || PUSH_NOTIFICATION_COPY.memo;
+  const body = options.body || memo.body || copy.defaultBody;
+  return {
+    title: options.title || copy.title,
+    body,
+    tag: options.tag || (memo.id ? `${copy.tagPrefix}-${memo.id}` : copy.tagPrefix),
+    url: options.url || '/stock-room/'
+  };
+}
+
 function getPushPublicKey() {
   return (typeof PUSH_VAPID_PUBLIC_KEY !== 'undefined' && PUSH_VAPID_PUBLIC_KEY)
     ? PUSH_VAPID_PUBLIC_KEY
@@ -1231,8 +1255,9 @@ async function initPushState() {
   }
 }
 
-async function sendMemoPush(memo, options = {}) {
+async function sendPushNotification(kind, memo, options = {}) {
   if (!getPushPublicKey() || !currentSession?.access_token) return null;
+  const notification = buildPushNotification(kind, memo, options);
   const res = await fetch(`${SUPABASE_URL}/functions/v1/memo-push`, {
     method: 'POST',
     headers: {
@@ -1243,13 +1268,13 @@ async function sendMemoPush(memo, options = {}) {
     body: JSON.stringify({
       memo: {
         id: memo.id,
-        body: memo.body,
+        body: notification.body,
         created_at: memo.created_at
       },
       sender_email: currentSession.user?.email || '',
-      title: options.title || undefined,
-      tag: options.tag || undefined,
-      url: options.url || undefined
+      title: notification.title,
+      tag: notification.tag,
+      url: notification.url
     })
   });
   if (!res.ok) {
@@ -1257,6 +1282,10 @@ async function sendMemoPush(memo, options = {}) {
     throw new Error(err.error || err.message || `HTTP ${res.status}`);
   }
   return res.json().catch(() => ({ ok: true }));
+}
+
+function sendMemoPush(memo) {
+  return sendPushNotification('memo', memo);
 }
 
 // ===== PAGE NAVIGATION =====
@@ -1619,14 +1648,14 @@ async function addStockReservation(kind, itemId, qty, feedbackScope, btnId) {
 }
 
 function sendReservationPush(reservation) {
-  return sendMemoPush(
+  return sendPushNotification(
+    'reservation',
     {
       id: reservation.id,
       body: getReservationText(reservation),
       created_at: reservation.created_at
     },
     {
-      title: 'Zaiko 予約',
       tag: `zaiko-reservation-${reservation.id}`,
       url: '/stock-room/'
     }
