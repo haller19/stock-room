@@ -37,7 +37,7 @@ stock-room/
 ├── index.html               # アプリ本体（認証済みユーザーのみ表示）
 ├── config.js                # Supabase設定・許可アカウント定義
 ├── manifest.json            # PWAマニフェスト
-├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v18）
+├── service-worker.js        # Service Worker（キャッシュ制御、現在 zaiko-v19）
 ├── favicon.ico              # ファビコン
 ├── zaiko_header_logo.svg    # ヘッダーロゴ
 ├── images/                  # 下部ナビ用SVGアイコン
@@ -205,7 +205,7 @@ create policy "allow_authenticated"
 `service-worker.js` の3行目のバージョン番号を上げてアップロードしてください。
 
 ```javascript
-const CACHE_VERSION = 'zaiko-v18'; // → 'zaiko-v19' に変更
+const CACHE_VERSION = 'zaiko-v19'; // → 'zaiko-v20' に変更
 ```
 
 ---

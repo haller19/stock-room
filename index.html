@@ -498,6 +498,16 @@
     font-size: 10px;
     color: var(--text-muted);
   }
+  .reservation-alert__location {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .reservation-alert__location-label {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
   .reservation-alert__actions {
     display: flex;
     align-items: center;
@@ -618,6 +628,71 @@
   .search-modal-input {
     width: 100%;
     margin-top: 6px;
+  }
+
+  /* ===== MOBILE STOCK LIST ===== */
+  @media (max-width: 720px) {
+    .table-wrap { overflow-x: visible; }
+    #stock-thead { display: none; }
+    #stock-tbody .stock-item-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(62px, .65fr) minmax(0, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+    #stock-tbody .stock-item-row > td {
+      min-width: 0;
+      padding: 8px 10px 10px;
+      border-bottom: 0;
+    }
+    #stock-tbody .stock-item-row .td-name {
+      grid-column: 1 / -1;
+      padding: 11px 10px 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #stock-tbody .stock-item-row .td-category,
+    #stock-tbody .stock-item-row .td-qty,
+    #stock-tbody .stock-item-row .td-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #stock-tbody .stock-item-row .td-category { align-items: flex-start; }
+    #stock-tbody .stock-item-row .td-qty {
+      align-items: center;
+      text-align: center;
+    }
+    #stock-tbody .stock-item-row .td-box { align-items: flex-end; }
+    #stock-tbody .stock-item-row .td-category::before,
+    #stock-tbody .stock-item-row .td-qty::before,
+    #stock-tbody .stock-item-row .td-box::before {
+      content: attr(data-label);
+      color: var(--text-muted);
+      font-family: var(--sans);
+      font-size: 9px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    #stock-tbody .stock-item-row .category-tag,
+    #stock-tbody .stock-item-row .box-tag {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #stock-tbody .stock-item-row--delete .td-name { padding-right: 48px; }
+    #stock-tbody .stock-item-row--delete .td-del-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: auto;
+      padding: 4px !important;
+      z-index: 1;
+    }
+    #stock-tbody .stock-item-row--group {
+      grid-template-columns: minmax(0, 1fr) minmax(62px, .65fr);
+    }
   }
 
   /* ===== DARK MODE ===== */
@@ -771,7 +846,7 @@
 <header>
   <a href="/stock-room/" style="display:flex;align-items:center;gap:6px;text-decoration:none">
     <img src="zaiko_header_logo.svg" alt="zaiko" style="height:28px;width:auto;display:block">
-    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v18</span>
+    <span style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1;align-self:flex-end;padding-bottom:3px">v19</span>
   </a>
   <div class="header-right">
     <div class="sync-status">
@@ -1746,6 +1821,8 @@ function renderTable() {
   tbody.innerHTML = '';
   filtered.forEach(item => {
     const tr = document.createElement('tr');
+    tr.classList.add('stock-item-row');
+    if (deleteMode) tr.classList.add('stock-item-row--delete');
     tr.dataset.id = item.id;
     if (editingId === item.id) tr.classList.add('editing');
 
@@ -1754,10 +1831,10 @@ function renderTable() {
         <td class="td-del-btn">
           <button class="row-del-btn" title="削除">✕</button>
         </td>
-        <td class="td-name">${esc(item.name)}</td>
-        <td><span class="category-tag">${esc(item.category || '—')}</span></td>
-        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+        <td class="td-name" title="${esc(item.name)}">${esc(item.name)}</td>
+        <td class="td-category" data-label="カテゴリ"><span class="category-tag">${esc(item.category || '—')}</span></td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}" data-label="在庫数">${item.qty}</td>
+        <td class="td-box" data-label="保管場所"><span class="box-tag">${esc(item.box || '—')}</span></td>
       `;
       tr.querySelector('.row-del-btn').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1765,10 +1842,10 @@ function renderTable() {
       });
     } else {
       tr.innerHTML = `
-        <td class="td-name">${esc(item.name)}</td>
-        <td><span class="category-tag">${esc(item.category || '—')}</span></td>
-        <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
-        <td><span class="box-tag">${esc(item.box || '—')}</span></td>
+        <td class="td-name" title="${esc(item.name)}">${esc(item.name)}</td>
+        <td class="td-category" data-label="カテゴリ"><span class="category-tag">${esc(item.category || '—')}</span></td>
+        <td class="td-qty${item.qty <= 1 ? ' low' : ''}" data-label="在庫数">${item.qty}</td>
+        <td class="td-box" data-label="保管場所"><span class="box-tag">${esc(item.box || '—')}</span></td>
       `;
       tr.addEventListener('click', () => toggleEditRow(item.id));
     }
@@ -1893,11 +1970,11 @@ function renderGroupView(filtered) {
     if (!isCollapsed) {
       groupItems.forEach(item => {
         const tr = document.createElement('tr');
-        tr.className = 'box-group-item-row';
+        tr.className = 'box-group-item-row stock-item-row stock-item-row--group';
         tr.innerHTML = `
-          <td class="td-name box-group-item-name">${esc(item.name)}</td>
-          <td><span class="category-tag">${esc(item.category || '—')}</span></td>
-          <td class="td-qty${item.qty <= 1 ? ' low' : ''}">${item.qty}</td>
+          <td class="td-name box-group-item-name" title="${esc(item.name)}">${esc(item.name)}</td>
+          <td class="td-category" data-label="カテゴリ"><span class="category-tag">${esc(item.category || '—')}</span></td>
+          <td class="td-qty${item.qty <= 1 ? ' low' : ''}" data-label="在庫数">${item.qty}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -2247,16 +2324,24 @@ function renderReservationCards(home) {
   if (reservations.length === 0) return '';
   const baseClass = home ? 'home-memo-alert' : 'memo-item';
   return reservations.map(r => {
-    const missingItem = !getReservationItem(r);
+    const item = getReservationItem(r);
+    const missingItem = !item;
     const busy = reservationBusyId === r.id;
     const disabled = (missingItem || busy) ? ' disabled' : '';
     const actionClass = r.kind === 'out' ? 'btn-danger' : 'btn-primary';
     const actionLabel = busy ? '処理中…' : getReservationActionLabel(r.kind);
     const meta = `${fmtMemoTime(r.created_at)}${missingItem ? ' / 品目なし' : ''}`;
+    const location = r.kind === 'out' ? `
+          <span class="reservation-alert__location">
+            <span class="reservation-alert__location-label">保管場所</span>
+            <span class="box-tag">${esc(item?.box || '—')}</span>
+          </span>
+    ` : '';
     return `
       <div class="${baseClass} reservation-alert reservation-alert--${esc(r.kind)}">
         <div class="reservation-alert__main">
           <span class="reservation-alert__title">${esc(getReservationText(r))}</span>
+          ${location}
           <span class="reservation-alert__time">${esc(meta)}</span>
         </div>
         <div class="reservation-alert__actions">
